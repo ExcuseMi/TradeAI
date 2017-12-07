@@ -45,3 +45,19 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+bin/Debug/Assembly-CSharp-firstpass.dll
+.vs/TradeAI/v15/.suo
+*.lock
+.vs/TradeAI/v15/Server/sqlite3/storage.ide
+obj/Release/TradeAI.pdb
+*.txt
+obj/Release/DesignTimeResolveAssemblyReferencesInput.cache
+.vs/TradeAI/v15/Server/sqlite3/storage.ide-shm
+*.dll
+bin/Debug/TradeAI.pdb
+*.pdb
+obj/Release/TradeAI.csproj.CoreCompileInputs.cache
+*.CopyComplete
+obj/Debug/TradeAI.csprojResolveAssemblyReference.cache
+*.cache
+.vs/TradeAI/v15/Server/sqlite3/storage.ide-wal
