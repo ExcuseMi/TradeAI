@@ -8,29 +8,49 @@ using System.Collections;
 
 public class TradeAI : MonoBehaviour
 {
-   IEnumerator Start()
-   {
-      
-       for (; ; )
-       {
-            if(MyPlayer.ship != null) { 
-                if(GameShip.list.Count < 10) {
-                    string name = "Satan " + GameShip.list.Count;
-                    GameShip.CreateRandom("Satan " + GameShip.list.Count, MyPlayer.ship.position, 1f);
-                    UIStatusBar.Show("Created " + name);
-                    yield return new WaitForFixedUpdate();
+    private int count = 0;
+       
+    void Start()
+    {
+        UIGameChat.onCommand += ChatInput;
+    }
 
-                }
-                else
-                {
-                    yield return UIStatusBar.Show("Full");
-                }
-            } else
+    void LateUpdate()
+    {
+
+    }
+
+    private void ChatInput(string msg, ref bool handled)
+    {
+        switch (msg)
+        {
+            case "spawnTrader": SpawnTrader(); handled = true; break;
+            case "cheathelp": CheatsList(); handled = true; break;
+        }
+    }
+
+    private void SpawnTrader()
+    {
+        count++;
+        string name = "<" + TNManager.playerName + ">Trader";
+        GameShip.CreateRandom(name, MyPlayer.ship.position, 1f, MyPlayer.factionID);
+        foreach (GameShip ship in GameWorld.FindObjectsOfType<GameShip>())
+        {
+            if(!ship.playerControlled && ship.name.Equals(name))
             {
-                yield return UIStatusBar.Show("Not ingame");
+                //ship.ai.ownerID = TNManager.playerID;
             }
         }
-   }
+        UIStatusBar.Show("count " + count, 5f);
+
+    }
+
+    private void CheatsList()
+    {
+  
+        UIGameChat.AddCurrent("spawntrader --- Spawns trader", Color.yellow);
+    }
+
 
 }
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,9 +7,13 @@ using UnityEngine;
 
 public class TradeAIShip : GameShip
 {
-    public TradeAIShip()
+    private GameShip gameShip;
+
+
+    public void OnStart()
     {
         this.name = "Satan";
+        UIStatusBar.Show("I'm alive?");
     }
 
     protected void OnFollow(int id, bool canRepair)
