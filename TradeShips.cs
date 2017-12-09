@@ -47,7 +47,7 @@ public static class TradeShips
 
     public static void Store(TradeShip tradeShip)
     {
-        REGISTRY[tradeShip.gameShip.id] = tradeShip;
+        REGISTRY[tradeShip.id] = tradeShip;
     }
 
     internal static void Remove(GameShip tradeShip)
