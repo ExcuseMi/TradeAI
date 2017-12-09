@@ -27,12 +27,6 @@ public static class TradeShips
         if (!REGISTRY.ContainsKey(gameShip.id))
         {
             gameShip.name = "<" + TNManager.playerName + ">" + gameShip.name;
-            gameShip.hullColor0 = MyPlayer.ship.hullColor0;
-            gameShip.hullColor1 = MyPlayer.ship.hullColor1;
-            gameShip.sailColor0 = MyPlayer.ship.sailColor0;
-            gameShip.sailColor1 = MyPlayer.ship.sailColor1;
-            gameShip.symbolTex = MyPlayer.ship.symbolTex;
-
             TradeShip tradeShip = new TradeShip(gameShip);
             REGISTRY [gameShip.id] = tradeShip;
         }

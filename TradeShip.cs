@@ -26,6 +26,7 @@ public class TradeShip
     {
         if (gameShip.isActive)
         {
+            UpdateShip();
             UpdateTradeMissions();
             TradeMission currentTradeMission = tradeMissions.FirstOrDefault();
             if (currentTradeMission != null)
@@ -59,6 +60,15 @@ public class TradeShip
                 }
             }
         }
+    }
+
+    void UpdateShip()
+    {
+        gameShip.hullColor0 = MyPlayer.ship.hullColor0;
+        gameShip.hullColor1 = MyPlayer.ship.hullColor1;
+        gameShip.sailColor0 = MyPlayer.ship.sailColor0;
+        gameShip.sailColor1 = MyPlayer.ship.sailColor1;
+        gameShip.symbolTex = MyPlayer.ship.symbolTex;
     }
 
     private void UpdateTradeMissions()
@@ -98,7 +108,6 @@ public class TradeShip
                 int salePrice = gameTown.Sell(tradeMission.playerItem);
                 if (salePrice != 0)
                 {
-
                     tradeMission.salePrice = salePrice;
                     UIStatusBar.Show(gameShip.name + "@" + gameTown.name +  ": " + "Sold item: " + Localization.Get(tradeMission.ResourceName) + ". Profit: " + GameTools.FormatGold(tradeMission.GetProfit(), true, true), 10f);
 

@@ -9,6 +9,7 @@ using System.Collections;
 public class TradeAI : MonoBehaviour
 {
     public static bool isRunning = false;
+
     IEnumerator Start()
     {
         if (!isRunning)
@@ -16,23 +17,30 @@ public class TradeAI : MonoBehaviour
             isRunning = true;
             for (; ; )
             {
-                if (MyPlayer.ship != null)
-                {
-                    List<GameShip> followers = DiscoverNewTraders();
-
-                    foreach (GameShip follower in followers)
+                    if (MyPlayer.ship != null)
                     {
-                        TradeShips.Create(follower);
-                        UIStatusBar.Show("Found a new trader");
-                        
+                        try
+                        {
+                            List<GameShip> followers = DiscoverNewTraders();
+
+                            foreach (GameShip follower in followers)
+                            {
+                                TradeShips.Create(follower);
+                                UIStatusBar.Show("Found a new trader");
+
+                            }
+                            AILogic.Update();
+                        } catch (Exception e)
+                        {
+                            UnityEngine.Debug.LogException(e);
+                        }
+                        yield return new WaitForSeconds(3f);
                     }
-                    AILogic.Update();
-                    yield return new WaitForSeconds(3f);
-                }
-                else
-                {
-                    yield return new WaitForSeconds(5f);
-                }
+                    else
+                    {
+                        yield return new WaitForSeconds(5f);
+                    }
+
             }
         }
     }
