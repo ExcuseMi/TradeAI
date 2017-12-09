@@ -9,20 +9,6 @@ public class AILogic
 {
     public static bool isRunning = false;
 
-    public IEnumerator Start()
-    {
-        if (!isRunning)
-        {
-            isRunning = true;
-            for (; ; )
-            {
-
-                yield return new WaitForSeconds(2f);
-            }
-        }
-        isRunning = false;
-    }
-
 
     public static void Update()
     {
@@ -32,8 +18,11 @@ public class AILogic
             UIStatusBar.Show("Hire a friendly ship to become your trader!", 5f);
 
         }
+        MyPlayer.ship.scaleSpeed = 10f;
+
         foreach (TradeAIShip tradeAIShip in tradeAIShips)
         {
+            tradeAIShip.gameShip.scaleSpeed = 5f;
             tradeAIShip.Update();
 
             TradeAIShips.Store(tradeAIShip);

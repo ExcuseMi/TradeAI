@@ -7,6 +7,7 @@ public class TradeAIShip
 {
     public GameShip gameShip { get; set; }
     public List<TradeMission> tradeMissions { get; set; }
+    const float RANGE = 8f;
 
     public TradeAIShip(GameShip gameShip)
     {
@@ -27,13 +28,13 @@ public class TradeAIShip
             TradeMission currentTradeMission = tradeMissions.FirstOrDefault();
             if (currentTradeMission != null)
             {
-                Boolean selling = HasResource(currentTradeMission.ResourceName) ? true : false;
+                Boolean selling = currentTradeMission.stockedUp() ? true : false;
                 GameTown currentDestinationTown = selling ? currentTradeMission.Destination : currentTradeMission.Departure;
-                if (selling && InRange(currentTradeMission.Destination, gameShip))
+                if (selling && InRange(currentTradeMission.Destination))
                 {
                     Sell(currentTradeMission.Destination);
                 }
-                else if (!selling && InRange(currentTradeMission.Departure, gameShip))
+                else if (!selling && InRange(currentTradeMission.Departure))
                 {
                     Buy(currentTradeMission.Departure);
                 }
@@ -42,7 +43,15 @@ public class TradeAIShip
                     AIShip aiShip = gameShip.GetComponent<AIShip>();
                     if (aiShip != null)
                     {
-                        aiShip.NavigateTo(currentDestinationTown.position, 2);
+                        aiShip.NavigateTo(currentDestinationTown.dockPos, 2);
+                        if (selling)
+                        {
+                            gameShip.AddHudText("Delivering " + Localization.Get(currentTradeMission.ResourceName) + " to " + currentDestinationTown.name, Color.gray, 1f);
+                        } else
+                        {
+                            gameShip.AddHudText("Buying " + Localization.Get(currentTradeMission.ResourceName) + " from " + currentDestinationTown.name, Color.gray, 1f);
+
+                        }
                     }
                 }
             }
@@ -57,20 +66,21 @@ public class TradeAIShip
             if (newTradePath != null)
             {
                 tradeMissions.Add(newTradePath);
-                gameShip.AddHudText(newTradePath.ToString(), Color.green, 5f, false);
             }
         }
     }
 
-    private Boolean InRange(GameTown gameTown, GameShip gameShip)
+    private Boolean InRange(GameTown gameTown)
     {
-        Boolean inProximity = gameTown.InProximityTo(gameShip);
-        return inProximity;
+        float range = Math.Max(Math.Max(
+            Math.Abs(gameTown.dockPos.x - gameShip.position.x),
+            Math.Abs(gameTown.dockPos.y - gameShip.position.y)), 
+            Math.Abs(gameTown.dockPos.z - gameShip.position.z));
+        return range <= RANGE; ;
     }
 
     private void Sell(GameTown gameTown)
     {
-        gameShip.AddHudText("Trying to sell", Color.green, 2f);
         List<TradeMission> tradeMissionsToRemove = new List<TradeMission>();
         List<TradeMission> tradeMissionsToAdd = new List<TradeMission>();
         foreach (TradeMission tradeMission in tradeMissions)

@@ -27,11 +27,11 @@ public class TradeAI : MonoBehaviour
                         
                     }
                     AILogic.Update();
-                    yield return new WaitForSeconds(1f);
+                    yield return new WaitForSeconds(3f);
                 }
                 else
                 {
-                    yield return new WaitForSeconds(1f);
+                    yield return new WaitForSeconds(5f);
                 }
             }
         }
