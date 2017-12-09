@@ -7,7 +7,6 @@ public class TradeAIShip
 {
     public GameShip gameShip { get; set; }
     public List<TradeMission> tradeMissions { get; set; }
-    const float RANGE = 1f;
 
     public TradeAIShip(GameShip gameShip)
     {
@@ -17,7 +16,7 @@ public class TradeAIShip
 
     public Boolean HasResource(string resource)
     {
-        return tradeMissions.Where(x => x.stockedUp && x.ResourceName.Equals(resource)).Any();
+        return tradeMissions.Where(x => x.stockedUp() && x.ResourceName.Equals(resource)).Any();
     }
 
     public void Update()
@@ -73,6 +72,7 @@ public class TradeAIShip
     {
         gameShip.AddHudText("Trying to sell", Color.green, 2f);
         List<TradeMission> tradeMissionsToRemove = new List<TradeMission>();
+        List<TradeMission> tradeMissionsToAdd = new List<TradeMission>();
         foreach (TradeMission tradeMission in tradeMissions)
         {
             if(tradeMission.Destination.id.Equals(gameTown.id))
@@ -82,7 +82,7 @@ public class TradeAIShip
                 {
 
                     tradeMission.salePrice = salePrice;
-                    UIStatusBar.Show(Localization.Format("Sold Item", tradeMission.playerItem.name, GameTools.FormatGold(salePrice, true, true)), 20f);
+                    UIStatusBar.Show(gameShip.name + ": " + Localization.Format("Sold Item", tradeMission.playerItem.name, GameTools.FormatGold(salePrice, true, true)), 20f);
 
                     tradeMissionsToRemove.Add(tradeMission);
                 } else
@@ -91,8 +91,8 @@ public class TradeAIShip
                     if (newTradeMission != null)
                     {
                         newTradeMission.playerItem = tradeMission.playerItem;
-                        newTradeMission.stockedUp = true;
-                        ReplaceTradeMission(tradeMission, newTradeMission);
+                        tradeMissionsToAdd.Add(newTradeMission);
+                        tradeMissionsToRemove.Add(tradeMission);
                     }
                     else
                     {
@@ -103,6 +103,7 @@ public class TradeAIShip
             }
         }
         RemoveTradeMissions(tradeMissionsToRemove);
+        tradeMissions.AddRange(tradeMissionsToAdd);
     }
 
     private void RemoveTradeMissions(List<TradeMission> tradeMissionsToRemove)
@@ -113,11 +114,6 @@ public class TradeAIShip
         }
     }
 
-    private void ReplaceTradeMission(TradeMission tradeMissionToRemove, TradeMission tradeMissionToAdd)
-    {
-        tradeMissions.Remove(tradeMissionToRemove);
-        tradeMissions.Add(tradeMissionToAdd);
-    }
     private void Buy(GameTown gameTown)
     {
         List<TradeMission> tradeMissionsToRemove = new List<TradeMission>();
@@ -128,14 +124,14 @@ public class TradeAIShip
             {
                 if (tradeMission.Departure.HasResource(tradeMission.ResourceName))
                 {
-                    PlayerItem playerItem = tradeMission.createPlayerItem();
+                    PlayerItem playerItem = createPlayerItemForResource(gameTown, tradeMission.ResourceName);
                     if (!MyPlayer.Buy(playerItem.gold))
                     {
                         return;
                     }
                     tradeMission.Departure.ReduceProduction(tradeMission.ResourceName);
-                    UIStatusBar.Show(Localization.Format("Bought Item", playerItem.name, GameTools.FormatGold(playerItem.gold, true, true)), 20f);
-                    tradeMission.stockedUp = true;
+                    tradeMission.playerItem = playerItem;
+                    UIStatusBar.Show(gameShip.name + ": " + Localization.Format("Bought Item", playerItem.name, GameTools.FormatGold(playerItem.gold, true, true)), 20f);
                     if (GameAudio.instance != null)
                         NGUITools.PlaySound(GameAudio.instance.buy);
                     MyPlayer.saveNeeded = true;
@@ -147,5 +143,19 @@ public class TradeAIShip
             }
         }
         RemoveTradeMissions(tradeMissionsToRemove);
+    }
+
+    private static PlayerItem createPlayerItemForResource(GameTown gameTown, string resourceName)
+    {
+        float multi = GameConfig.GetRewardMultiplier(MyPlayer.level, true);
+        int mPrice = gameTown.GetFinalProductionOffer(resourceName, multi);
+        PlayerItem playerItem = new PlayerItem();
+        playerItem.name = Localization.Format("Shipment of", Localization.Get(resourceName));
+        playerItem.info = Localization.Format("Loaded in", gameTown.name);
+        playerItem.gold = mPrice;
+        playerItem.type = "Shipment";
+        playerItem.SetStat(resourceName, 1);
+        playerItem.SetStat("Level", GameZone.challengeLevel);
+        return playerItem;
     }
 }
