@@ -8,49 +8,51 @@ using System.Collections;
 
 public class TradeAI : MonoBehaviour
 {
-    private int count = 0;
-       
-    void Start()
+    public static bool isRunning = false;
+    IEnumerator Start()
     {
-        UIGameChat.onCommand += ChatInput;
-    }
-
-    void LateUpdate()
-    {
-
-    }
-
-    private void ChatInput(string msg, ref bool handled)
-    {
-        switch (msg)
+        if (!isRunning)
         {
-            case "spawnTrader": SpawnTrader(); handled = true; break;
-            case "cheathelp": CheatsList(); handled = true; break;
-        }
-    }
-
-    private void SpawnTrader()
-    {
-        count++;
-        string name = "<" + TNManager.playerName + ">Trader";
-        GameShip.CreateRandom(name, MyPlayer.ship.position, 1f, MyPlayer.factionID);
-        foreach (GameShip ship in GameWorld.FindObjectsOfType<GameShip>())
-        {
-            if(!ship.playerControlled && ship.name.Equals(name))
+            isRunning = true;
+            for (; ; )
             {
-                //ship.ai.ownerID = TNManager.playerID;
+                if (MyPlayer.ship != null)
+                {
+                    List<GameShip> followers = DiscoverNewTraders();
+
+                    foreach (GameShip follower in followers)
+                    {
+                        TradeAIShips.Create(follower);
+                        UIStatusBar.Show("Found a new trader");
+                        
+                    }
+                    AILogic.Update();
+                    yield return new WaitForSeconds(1f);
+                }
+                else
+                {
+                    yield return new WaitForSeconds(1f);
+                }
             }
         }
-        UIStatusBar.Show("count " + count, 5f);
-
     }
 
-    private void CheatsList()
+
+    private static List<GameShip> DiscoverNewTraders()
     {
-  
-        UIGameChat.AddCurrent("spawntrader --- Spawns trader", Color.yellow);
+        GameShip[] ships = GameWorld.FindObjectsOfType<GameShip>();
+        List<GameShip> followers = new List<GameShip>();
+        if (ships != null && ships.Count() > 0)
+        {
+            foreach (GameShip ship in ships)
+            {
+                if(ship.ai != null && ship.ai.followTarget != null && ship.ai.followTarget.id == MyPlayer.ship.id)
+                {
+                    followers.Add(ship);
+                }
+            }
+        }
+        return followers;
     }
-
-
 }
 
