@@ -32,7 +32,7 @@ public class TradeShip
             if (currentTradeMission != null)
             {
 
-                Boolean selling = currentTradeMission.stockedUp() ? true : false;
+                Boolean selling = currentTradeMission.stockedUp();
                 GameTown currentDestinationTown = selling ? currentTradeMission.Destination : currentTradeMission.Departure;
                 if (selling && InRange(currentTradeMission.Destination))
                 {
