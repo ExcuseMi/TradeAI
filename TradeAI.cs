@@ -22,7 +22,7 @@ public class TradeAI : MonoBehaviour
 
                     foreach (GameShip follower in followers)
                     {
-                        TradeAIShips.Create(follower);
+                        TradeShips.Create(follower);
                         UIStatusBar.Show("Found a new trader");
                         
                     }

@@ -3,15 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public class TradeAIShip
+public class TradeShip
 {
     public GameShip gameShip { get; set; }
+    public int id { get; set; }
     public List<TradeMission> tradeMissions { get; set; }
     const float RANGE = 8f;
 
-    public TradeAIShip(GameShip gameShip)
+    public TradeShip(GameShip gameShip)
     {
         this.gameShip = gameShip;
+        this.id = gameShip.id;
         this.tradeMissions = new List<TradeMission>();
     }
 
@@ -24,10 +26,11 @@ public class TradeAIShip
     {
         if (gameShip.isActive)
         {
-            UpdateTradePaths();
+            UpdateTradeMissions();
             TradeMission currentTradeMission = tradeMissions.FirstOrDefault();
             if (currentTradeMission != null)
             {
+
                 Boolean selling = currentTradeMission.stockedUp() ? true : false;
                 GameTown currentDestinationTown = selling ? currentTradeMission.Destination : currentTradeMission.Departure;
                 if (selling && InRange(currentTradeMission.Destination))
@@ -58,14 +61,19 @@ public class TradeAIShip
         }
     }
 
-    private void UpdateTradePaths()
+    private void UpdateTradeMissions()
     {
+        tradeMissions.ForEach(x => x.Update());
+        tradeMissions.RemoveAll(x => !x.valid); 
         if (tradeMissions.Count() == 0)
         {
-            TradeMission newTradePath = TradeMissionCalculator.FindATradeMission();
-            if (newTradePath != null)
+            TradeMission newTradeMission = TradeMissionCalculator.FindATradeMission(gameShip.position);
+            if (newTradeMission != null)
             {
-                tradeMissions.Add(newTradePath);
+                tradeMissions.Add(newTradeMission);
+            } else
+            {
+                gameShip.AddHudText("Can't find trade missions", Color.red, 1f);
             }
         }
     }
@@ -92,12 +100,12 @@ public class TradeAIShip
                 {
 
                     tradeMission.salePrice = salePrice;
-                    UIStatusBar.Show(gameShip.name + ": " + Localization.Format("Sold Item", tradeMission.playerItem.name, GameTools.FormatGold(salePrice, true, true)), 20f);
+                    UIStatusBar.Show(gameShip.name + "@" + gameTown.name +  ": " + "Sold item: " + Localization.Get(tradeMission.ResourceName) + ". Profit: " + GameTools.FormatGold(tradeMission.GetProfit(), true, true), 10f);
 
                     tradeMissionsToRemove.Add(tradeMission);
                 } else
                 {
-                    TradeMission newTradeMission = TradeMissionCalculator.FindATradeMissionForResource(tradeMission.ResourceName);
+                    TradeMission newTradeMission = TradeMissionCalculator.FindATradeMissionForResource(tradeMission.ResourceName, tradeMission.Departure, gameShip.position);
                     if (newTradeMission != null)
                     {
                         newTradeMission.playerItem = tradeMission.playerItem;
@@ -106,7 +114,7 @@ public class TradeAIShip
                     }
                     else
                     {
-                        UIStatusBar.Show("This town doesn't let me sell my stuff! Destroying cargo worth " + GameTools.FormatGold(tradeMission.playerItem.gold, true, true), 5f);
+                        UIStatusBar.Show("No towns in this region allow me to sell " + tradeMission.playerItem.name + ". Cargo destroyed, cost: " + GameTools.FormatGold(tradeMission.playerItem.gold, true, true), 5f);
                         tradeMissionsToRemove.Add(tradeMission);
                     }
                 }
@@ -141,7 +149,7 @@ public class TradeAIShip
                     }
                     tradeMission.Departure.ReduceProduction(tradeMission.ResourceName);
                     tradeMission.playerItem = playerItem;
-                    UIStatusBar.Show(gameShip.name + ": " + Localization.Format("Bought Item", playerItem.name, GameTools.FormatGold(playerItem.gold, true, true)), 20f);
+                    //UIStatusBar.Show(gameShip.name + "@" + gameTown.name + ": " + Localization.Format("Bought Item", playerItem.name, GameTools.FormatGold(playerItem.gold, true, true)), 10f);
                     if (GameAudio.instance != null)
                         NGUITools.PlaySound(GameAudio.instance.buy);
                     MyPlayer.saveNeeded = true;
