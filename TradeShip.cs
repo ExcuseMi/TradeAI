@@ -90,6 +90,10 @@ public class TradeShip
 
     private Boolean InRange(GameTown gameTown)
     {
+        if(gameTown == null || gameTown.dockPos == null || gameShip == null || gameShip.position == null)
+        {
+            return false;
+        }
         float range = Math.Max(Math.Max(
             Math.Abs(gameTown.dockPos.x - gameShip.position.x),
             Math.Abs(gameTown.dockPos.y - gameShip.position.y)), 
@@ -110,6 +114,7 @@ public class TradeShip
                 {
                     tradeMission.salePrice = salePrice;
                     UIStatusBar.Show(gameShip.name + "@" + gameTown.name +  ": " + "Sold item: " + Localization.Get(tradeMission.ResourceName) + ". Profit: " + GameTools.FormatGold(tradeMission.GetProfit(), true, true), 10f);
+                    UIStatusBar.Show(gameShip.name + "@" + gameTown.name + ": " + "Sold item: " + Localization.Get(tradeMission.ResourceName) + ". Profit: " + GameTools.FormatGold(tradeMission.GetProfit(), true, true), 10f);
 
                     tradeMissionsToRemove.Add(tradeMission);
                 } else
