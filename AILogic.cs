@@ -12,7 +12,12 @@ public class AILogic
 
     public static void Update()
     {
-        List<TradeShip> tradeShips = TradeShips.FindAll();
+        if(MyPlayer.GetResource("gold") < 2000)
+        {
+            MyPlayer.ModifyResource("gold", 2000, true);
+            MyPlayer.Sync();
+        }
+            List<TradeShip> tradeShips = TradeShips.FindAll();
         if(tradeShips.Count() == 0)
         {
             UIStatusBar.Show("Hire a friendly ship to become your trader!", 5f);

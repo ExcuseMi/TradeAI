@@ -24,7 +24,7 @@ public class TradeShip
 
     public void Update()
     {
-        if (gameShip.isActive)
+        if (gameShip != null && gameShip.position != null && gameShip.isActive)
         {
             UpdateShip();
             UpdateTradeMissions();
@@ -179,7 +179,7 @@ public class TradeShip
 
     private static PlayerItem createPlayerItemForResource(GameTown gameTown, string resourceName)
     {
-        float multi = GameConfig.GetRewardMultiplier(MyPlayer.level, true);
+        float multi = GameZone.rewardMultiplier;
         int mPrice = gameTown.GetFinalProductionOffer(resourceName, multi);
         PlayerItem playerItem = new PlayerItem();
         playerItem.name = Localization.Format("Shipment of", Localization.Get(resourceName));
