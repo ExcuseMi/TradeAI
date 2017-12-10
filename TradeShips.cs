@@ -12,8 +12,7 @@ public static class TradeShips
     {
         if (!REGISTRY.ContainsKey(gameShip.id))
         {
-            gameShip.onDeath += Remove;
-            return new TradeShip(gameShip);
+            return null;
         }
         else
         {
@@ -26,8 +25,8 @@ public static class TradeShips
     {
         if (!REGISTRY.ContainsKey(gameShip.id))
         {
-            gameShip.name = "<" + TNManager.playerName + ">" + gameShip.name;
             TradeShip tradeShip = new TradeShip(gameShip);
+            TradeChat.Chat("Added new trader " + gameShip.name + " with " + tradeShip.CargoSlots + " cargo slots.");
             REGISTRY [gameShip.id] = tradeShip;
         }
         return Find(gameShip);
@@ -38,16 +37,9 @@ public static class TradeShips
         return REGISTRY.Values.ToList();
     }
 
-    public static void Purge()
-    {
-
-
-    }
-
-
     public static void Store(TradeShip tradeShip)
     {
-        REGISTRY[tradeShip.id] = tradeShip;
+        REGISTRY[tradeShip.Id] = tradeShip;
     }
 
     internal static void Remove(GameShip tradeShip)
@@ -60,9 +52,9 @@ public static class TradeShips
 
     public static void Remove(TradeShip tradeShip)
     {
-        if (REGISTRY.ContainsKey(tradeShip.id))
+        if (REGISTRY.ContainsKey(tradeShip.Id))
         {
-            REGISTRY.Remove(tradeShip.id);
+            REGISTRY.Remove(tradeShip.Id);
         }
     }
 

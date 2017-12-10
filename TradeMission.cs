@@ -5,31 +5,36 @@ public class TradeMission
     public GameTown Departure { get; set; }
     public GameTown Destination { get; set; }
     public String ResourceName { get; set; }
-    public int salePrice { get; set; }
-    public PlayerItem playerItem { get; set; }
-    public Boolean valid { get; set; } = true;
-    public Boolean stockedUp()
+    public int SalePrice { get; set; }
+    public PlayerItem PlayerItem { get; set; }
+    public Boolean Valid { get; set; } = true;
+    public Boolean NotEnoughFunds { get; set; } = false;
+    public Boolean StockedUp()
     {
-        return playerItem != null;
+        return PlayerItem != null;
     }
 
     public void Update()
     {
-        if (stockedUp())
+        if (StockedUp())
         {
             if (!Destination.NeedsResource(ResourceName))
             {
-                valid = false;
+                Valid = false;
             }
         } else if(!Departure.HasResource(ResourceName))
         {
-            valid = false;
+            Valid = false;
         }
     }
 
     public int GetProfit()
     {
-        return salePrice - playerItem.gold;
+        if(PlayerItem == null)
+        {
+            return 0;
+        }
+        return SalePrice - PlayerItem.gold;
     }
 
     public override string ToString()

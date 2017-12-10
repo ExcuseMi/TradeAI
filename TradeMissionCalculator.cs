@@ -10,10 +10,11 @@ static class TradeMissionCalculator
      * TODO Implement a real Trading algorithm, this works for testing
      * 
      */
-    public static TradeMission FindATradeMission(Vector3 position)
+    public static List<TradeMission> FindTradeMissions(Vector3 position, int howMany)
     {
         GameTown[] gameTowns = GameWorld.FindObjectsOfType<GameTown>();
         Array.Sort(gameTowns, new TownByProximityComparator(position));
+        List<TradeMission> newTradeMissions = new List<TradeMission>();
         if (gameTowns != null && gameTowns.Count() > 0)
         {
             List<TradeMission> tradeMissions = FindAll();
@@ -23,19 +24,34 @@ static class TradeMissionCalculator
                 {
                     if (production.count > 0)
                     {
-                        if (CanBuy(production.name, gameTown, tradeMissions))
+                        var allCurrentTradeMissions = new List<TradeMission>(newTradeMissions.Count + tradeMissions.Count);
+                        allCurrentTradeMissions.AddRange(newTradeMissions);
+                        allCurrentTradeMissions.AddRange(tradeMissions);
+
+                        int count = HowManyCanWeBuy(production.name, gameTown, tradeMissions);
+                        if (count > 0)
                         {
-                            GameTown buyer = FindBuyer(production.name, gameTowns.Where(x => !x.name.Equals(gameTown.name)).ToArray(), tradeMissions);
-                            if(buyer != null)
+
+                            GameTown buyer = FindBuyer(production.name, gameTowns.Where(x => !x.name.Equals(gameTown.name)).ToArray(), allCurrentTradeMissions);
+                            while (count > 0 && buyer != null)
                             {
-                                return new TradeMission() { ResourceName = production.name, Departure = gameTown, Destination = buyer };
+                                newTradeMissions.Add(new TradeMission() { ResourceName = production.name, Departure = gameTown, Destination = buyer });
+                                if (newTradeMissions.Count() >= howMany)
+                                {
+                                    return newTradeMissions;
+                                }
+                                count--;
+                                allCurrentTradeMissions = new List<TradeMission>(newTradeMissions.Count + tradeMissions.Count);
+                                allCurrentTradeMissions.AddRange(newTradeMissions);
+                                allCurrentTradeMissions.AddRange(tradeMissions);
+                                buyer = FindBuyer(production.name, gameTowns.Where(x => !x.name.Equals(gameTown.name)).ToArray(), allCurrentTradeMissions);
                             }
                         } 
                     }
                 }
             }
         }
-        return null;
+        return newTradeMissions;
     }
 
 
@@ -79,11 +95,11 @@ static class TradeMissionCalculator
             .ToList();
     }
 
-    private static Boolean CanBuy(string resourceName, GameTown departure, List<TradeMission> allTradeMissionsForResource)
+    private static int HowManyCanWeBuy(string resourceName, GameTown departure, List<TradeMission> allTradeMissionsForResource)
     {
         int production = departure.GetProduction(resourceName);
-        production -= allTradeMissionsForResource.Where(m => !m.stockedUp() && m.Departure.name.Equals(departure.name)).Count();
-        return production > 0;
+        production -= allTradeMissionsForResource.Where(m => !m.StockedUp() && m.Departure.name.Equals(departure.name)).Count();
+        return production;
     }
 
     private static Boolean CanSell(string resourceName, GameTown destination, List<TradeMission> allTradeMissionsForResource)
