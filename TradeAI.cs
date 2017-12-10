@@ -14,6 +14,8 @@ public class TradeAI : MonoBehaviour
     {
         if (!isRunning)
         {
+            UIGameChat.onCommand += ChatInput;
+
             StartCoroutine(DoStatusUpdates());
             StartCoroutine(DoNavigation());
             StartCoroutine(UpdateTradeMissions());
@@ -135,6 +137,19 @@ public class TradeAI : MonoBehaviour
             }
         }
         return followers;
+    }
+
+    private void ChatInput(string msg, ref bool handled)
+    {
+        switch (msg)
+        {
+            case "stopTrading": StopTrading(); handled = true; break;
+        }
+    }
+
+    private void StopTrading()
+    {
+        AILogic.StopTrading();
     }
 }
 

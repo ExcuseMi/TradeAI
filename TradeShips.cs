@@ -21,15 +21,23 @@ public static class TradeShips
     }
 
 
-    public static TradeShip Create(GameShip gameShip)
+    public static void Create(GameShip gameShip)
     {
+        if (gameShip.ai != null && gameShip.position != null)
+        {
+            gameShip.ai.NavigateTo(gameShip.position);
+        }
         if (!REGISTRY.ContainsKey(gameShip.id))
         {
             TradeShip tradeShip = new TradeShip(gameShip);
-            TradeChat.Chat("Added new trader " + gameShip.name + " with " + tradeShip.CargoSlots + " cargo slotsqs   z");
+            TradeChat.Chat("Added new trader " + gameShip.name + " with " + tradeShip.CargoSlots + " cargo slots");
             REGISTRY [gameShip.id] = tradeShip;
+        } else
+        {
+            TradeShip tradeShip = REGISTRY[gameShip.id];
+            GamePlayer owner = tradeShip.GetOwner();
+            TradeChat.Warn(gameShip.name + " is owned by " + owner.name);
         }
-        return Find(gameShip);
     }
 
     public static List<TradeShip> FindAll()

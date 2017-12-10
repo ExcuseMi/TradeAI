@@ -13,9 +13,18 @@ public class AILogic
         List<TradeShip> tradeShips = TradeShips.FindAll();
         foreach (TradeShip tradeShip in tradeShips)
         {
-            if(tradeShip.GameShip.isActive) { 
+            if(tradeShip.IsValid())
+            {
+                if (tradeShip.StopTrade && tradeShip.tradeMissions.Count() == 0)
+                {
+                    TradeChat.Chat("Trader " + tradeShip.GameShip.name + " is signing off!");
+                    tradeShipsToRemove.Add(tradeShip);
+                }
+                else
+                {
+                    tradeShip.UpdateShip();
+                }
 
-                tradeShip.UpdateShip();
             } else
             {
                 tradeShipsToRemove.Add(tradeShip);
@@ -29,7 +38,7 @@ public class AILogic
         List<TradeShip> tradeShips = TradeShips.FindAll();
         foreach (TradeShip tradeShip in tradeShips)
         {
-            if (tradeShip.GameShip.isActive)
+            if (tradeShip.IsValid())
             {
                 tradeShip.UpdateStatus();
             }
@@ -41,7 +50,7 @@ public class AILogic
         List<TradeShip> tradeShips = TradeShips.FindAll();
         foreach (TradeShip tradeShip in tradeShips)
         {
-            if (tradeShip.GameShip.isActive)
+            if (tradeShip.IsValid())
             {
                 tradeShip.UpdateNavigation();
             }
@@ -53,9 +62,20 @@ public class AILogic
         List<TradeShip> tradeShips = TradeShips.FindAll();
         foreach (TradeShip tradeShip in tradeShips)
         {
-            if (tradeShip.GameShip.isActive)
+            if (tradeShip.IsValid())
             {
                 tradeShip.UpdateTradeMissions();
+            }
+        }
+    }
+
+    internal static void StopTrading()
+    {
+        List<TradeShip> tradeShips = TradeShips.FindAll();
+        foreach (TradeShip tradeShip in tradeShips) {
+            if (tradeShip.IsValid())
+            {
+                tradeShip.StopTrade = true;
             }
         }
     }

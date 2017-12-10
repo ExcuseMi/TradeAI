@@ -50,6 +50,7 @@
     <Compile Include="TradeAI.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TradeChat.cs" />
+    <Compile Include="TradeMissionComparator.cs" />
     <Compile Include="TradeShip.cs" />
     <Compile Include="TradeMission.cs" />
     <Compile Include="TradeMissionCalculator.cs" />

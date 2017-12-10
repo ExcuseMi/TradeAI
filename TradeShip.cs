@@ -13,6 +13,8 @@ public class TradeShip
     public int OwnerId { get; set; }
     private Boolean RequestTradeMisison = true;
     public int CargoSlots { get; set; }
+    public Boolean StopTrade { get; set; } = false;
+
 
     public TradeShip(GameShip gameShip)
     {
@@ -60,7 +62,7 @@ public class TradeShip
 
     public void UpdateStatus()
     {
-        if(GameShip != null) { 
+        if(GameShip != null) {
             TradeMission currentTradeMission = tradeMissions.FirstOrDefault();
 
             if (currentTradeMission != null)
@@ -92,7 +94,7 @@ public class TradeShip
             {
                 if (!RequestTradeMisison)
                 {
-                    GameShip.AddHudText("Can't find trade missions", Color.red, 1f);
+                    GameShip.AddHudText("Where are the good deals ?", Color.gray, 1f);
                 }
             }
         }
@@ -122,12 +124,13 @@ public class TradeShip
         {
             tradeMissions.ForEach(x => x.Update());
             tradeMissions.RemoveAll(x => !x.Valid);
-            if (tradeMissions.Count() < CargoSlots)
+            if (!StopTrade && tradeMissions.Count() < CargoSlots)
             {
                 List<TradeMission> newTradeMissions = TradeMissionCalculator.FindTradeMissions(GameShip.position, CargoSlots - tradeMissions.Count());
                 tradeMissions.AddRange(newTradeMissions);
                 RequestTradeMisison = false;
             }
+            
         }
     }
 
@@ -184,12 +187,13 @@ public class TradeShip
             int profit = tradeMissionsCompleted
                 .Select(m => m.GetProfit()).Sum();
 
-            TradeChat.Chat(GameShip.name + " sold " + resourcesCS + " at " + gameTown.name + ". " + (profit >= 0 ? "Profit" : "Loss") + ": " + profit + "g");
+            TradeChat.Chat(GameShip.name + " sold " + resourcesCS + " at " + gameTown.name + ". " + (profit >= 0 ? "Profit" : "Loss") + " : " + profit + "g");
             RemoveTradeMissions(tradeMissionsCompleted);
 
         }
         RemoveTradeMissions(tradeMissionsToRemove);
         MarkRequestNewTradeMissionsIfNeeded();
+        tradeMissions.Sort(new TradeMissionComparator());
     }
 
 
@@ -207,10 +211,10 @@ public class TradeShip
                     PlayerItem playerItem = CreatePlayerItemForResource(gameTown, tradeMission.ResourceName);
                     if (MyPlayer.GetResource("gold") > playerItem.gold && MyPlayer.Buy(playerItem.gold))
                     {
-                            tradeMission.NotEnoughFunds = true;
-                            tradeMission.Departure.ReduceProduction(tradeMission.ResourceName);
-                            tradeMission.PlayerItem = playerItem;
-                            tradeMissionsStockedUp.Add(tradeMission);
+                        tradeMission.NotEnoughFunds = true;
+                        tradeMission.Departure.ReduceProduction(tradeMission.ResourceName);
+                        tradeMission.PlayerItem = playerItem;
+                        tradeMissionsStockedUp.Add(tradeMission);
                     } else if (!tradeMission.NotEnoughFunds)
                     {
                         tradeMission.NotEnoughFunds = true;
@@ -283,5 +287,16 @@ public class TradeShip
         if (child1 == null)
             return DEFAULT_CARGO_SLOTS;
         return child1.GetChild<int>("cargo");
+    }
+
+    public GamePlayer GetOwner()
+    {
+        GamePlayer gamePlayer = GamePlayer.Find(OwnerId);
+        return gamePlayer;
+    }
+
+    public Boolean IsValid()
+    {
+        return GameShip != null && GameShip.isActive; 
     }
 }

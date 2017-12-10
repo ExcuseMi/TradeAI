@@ -81,8 +81,6 @@ static class TradeMissionCalculator
             if (CanSell(resourceName, destination, tradeMissions))
             {
                 return destination;
-            } else
-            {
             }
         }
         return null;
@@ -97,8 +95,12 @@ static class TradeMissionCalculator
 
     private static int HowManyCanWeBuy(string resourceName, GameTown departure, List<TradeMission> allTradeMissionsForResource)
     {
+        if(departure == null)
+        {
+            return 0;
+        }
         int production = departure.GetProduction(resourceName);
-        production -= allTradeMissionsForResource.Where(m => !m.StockedUp() && m.Departure.name.Equals(departure.name)).Count();
+        production -= allTradeMissionsForResource.Where(m => !m.StockedUp() && m.Departure != null && m.Departure.name.Equals(departure.name)).Count();
         return production;
     }
 
