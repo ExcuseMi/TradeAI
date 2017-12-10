@@ -60,38 +60,40 @@ public class TradeShip
 
     public void UpdateStatus()
     {
-        TradeMission currentTradeMission = tradeMissions.FirstOrDefault();
+        if(GameShip != null) { 
+            TradeMission currentTradeMission = tradeMissions.FirstOrDefault();
 
-        if (currentTradeMission != null)
-        {
-            Boolean selling = currentTradeMission.StockedUp();
-            GameTown currentDestinationTown = selling ? currentTradeMission.Destination : currentTradeMission.Departure;
-            AIShip aiShip = GameShip.GetComponent<AIShip>();
-            if (aiShip != null)
+            if (currentTradeMission != null)
             {
-                if (selling)
+                Boolean selling = currentTradeMission.StockedUp();
+                GameTown currentDestinationTown = selling ? currentTradeMission.Destination : currentTradeMission.Departure;
+                AIShip aiShip = GameShip.GetComponent<AIShip>();
+                if (aiShip != null)
                 {
-                    string[] resources = tradeMissions.Where(m => m.Destination == currentTradeMission.Destination && m.StockedUp())
-                        .Select(m => Localization.Get(m.ResourceName))
-                        .GroupBy(x => x)
-                        .Select(g => g.Key + (g.Count() > 1 ? " (x" + g.Count() + ")": "")).ToArray();
-                    string resourcesCS = string.Join(", ", resources);
-                    GameShip.AddHudText("Delivering " + resourcesCS + " to " + currentDestinationTown.name, Color.gray, 1f);
+                    if (selling)
+                    {
+                        string[] resources = tradeMissions.Where(m => m.Destination == currentTradeMission.Destination && m.StockedUp())
+                            .Select(m => Localization.Get(m.ResourceName))
+                            .GroupBy(x => x)
+                            .Select(g => g.Key + (g.Count() > 1 ? " (x" + g.Count() + ")": "")).ToArray();
+                        string resourcesCS = string.Join(", ", resources);
+                        GameShip.AddHudText("Delivering " + resourcesCS + " to " + currentDestinationTown.name, Color.gray, 1f);
+                    }
+                    else
+                    {
+                        string[] resources = tradeMissions.Where(m => m.Departure == currentTradeMission.Departure && !m.StockedUp()).Select(m => Localization.Get(m.ResourceName))
+                            .GroupBy(x => x)
+                            .Select(g => g.Key + (g.Count() > 1 ? " (x" + g.Count() + ")" : "")).ToArray();
+                        string resourcesCS = string.Join(", ", resources);
+                        GameShip.AddHudText("Buying " + resourcesCS + " from " + currentDestinationTown.name, Color.gray, 1f);
+                    }
                 }
-                else
-                {
-                    string[] resources = tradeMissions.Where(m => m.Departure == currentTradeMission.Departure && !m.StockedUp()).Select(m => Localization.Get(m.ResourceName))
-                        .GroupBy(x => x)
-                        .Select(g => g.Key + (g.Count() > 1 ? " (x" + g.Count() + ")" : "")).ToArray();
-                    string resourcesCS = string.Join(", ", resources);
-                    GameShip.AddHudText("Buying " + resourcesCS + " from " + currentDestinationTown.name, Color.gray, 1f);
-                }
-            }
-        } else
-        {
-            if (!RequestTradeMisison)
+            } else
             {
-                GameShip.AddHudText("Can't find trade missions", Color.red, 1f);
+                if (!RequestTradeMisison)
+                {
+                    GameShip.AddHudText("Can't find trade missions", Color.red, 1f);
+                }
             }
         }
     }
