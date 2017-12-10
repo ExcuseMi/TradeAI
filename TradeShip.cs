@@ -124,6 +124,10 @@ public class TradeShip
         {
             tradeMissions.ForEach(x => x.Update());
             tradeMissions.RemoveAll(x => !x.Valid);
+            if(StopTrade)
+            {
+                tradeMissions.RemoveAll(x => !x.StockedUp());
+            }
             if (!StopTrade && tradeMissions.Count() < CargoSlots)
             {
                 List<TradeMission> newTradeMissions = TradeMissionCalculator.FindTradeMissions(GameShip.position, CargoSlots - tradeMissions.Count());
