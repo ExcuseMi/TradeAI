@@ -26,7 +26,7 @@ public static class TradeShips
         if (!REGISTRY.ContainsKey(gameShip.id))
         {
             TradeShip tradeShip = new TradeShip(gameShip);
-            TradeChat.Chat("Added new trader " + gameShip.name + " with " + tradeShip.CargoSlots + " cargo slots.");
+            TradeChat.Chat("Added new trader " + gameShip.name + " with " + tradeShip.CargoSlots + " cargo slotsqs   z");
             REGISTRY [gameShip.id] = tradeShip;
         }
         return Find(gameShip);

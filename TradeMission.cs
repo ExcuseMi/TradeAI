@@ -8,7 +8,7 @@ public class TradeMission
     public int SalePrice { get; set; }
     public PlayerItem PlayerItem { get; set; }
     public Boolean Valid { get; set; } = true;
-    public Boolean NotEnoughFunds { get; set; } = false;
+    public Boolean NotEnoughFunds { get; set; }
     public Boolean StockedUp()
     {
         return PlayerItem != null;

@@ -19,7 +19,7 @@ public class TradeShip
         this.GameShip = gameShip;
         this.Id = gameShip.id;
         this.tradeMissions = new List<TradeMission>();
-        this.OwnerId = gameShip.ownerID;
+        this.OwnerId = TNManager.playerID;
         this.CargoSlots = GetCargoSlots(GameShip.unitType);
     }
 

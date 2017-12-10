@@ -12,4 +12,9 @@ public static class TradeChat
     {
         UIGameChat.AddCurrent(message, ORANGE);
     }
+
+    public static void Warn(string message)
+    {
+        UIGameChat.AddCurrent(message, Color.red);
+    }
 }
