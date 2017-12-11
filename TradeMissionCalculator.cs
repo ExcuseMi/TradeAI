@@ -12,7 +12,7 @@ static class TradeMissionCalculator
      */
     public static List<TradeMission> FindTradeMissions(Vector3 position, int howMany)
     {
-        GameTown[] gameTowns = GameWorld.FindObjectsOfType<GameTown>();
+        GameTown[] gameTowns = GameWorld.FindObjectsOfType<GameTown>().Where(t=>TradeMission.GameTownIsAlly(t)).ToArray();
         Array.Sort(gameTowns, new TownByProximityComparator(position));
         List<TradeMission> newTradeMissions = new List<TradeMission>();
         if (gameTowns != null && gameTowns.Count() > 0)
@@ -57,7 +57,7 @@ static class TradeMissionCalculator
 
     public static TradeMission FindATradeMissionForResource(string resourceName, GameTown departure, Vector3 position)
     {
-        GameTown[] gameTowns = GameWorld.FindObjectsOfType<GameTown>();
+        GameTown[] gameTowns = GameWorld.FindObjectsOfType<GameTown>().Where(t => t.factionID != 0).ToArray();
         Array.Sort(gameTowns, new TownByProximityComparator(position));
 
         if (gameTowns != null && gameTowns.Count() > 0)

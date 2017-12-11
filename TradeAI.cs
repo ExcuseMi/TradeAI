@@ -9,13 +9,12 @@ using System.Collections;
 public class TradeAI : MonoBehaviour
 {
     public static bool isRunning = false;
-
     IEnumerator Start()
     {
         if (!isRunning)
         {
             UIGameChat.onCommand += ChatInput;
-
+            GameWorld.onMapChanged += OnMapChanged;
             StartCoroutine(DoStatusUpdates());
             StartCoroutine(DoNavigation());
             StartCoroutine(UpdateTradeMissions());
@@ -28,10 +27,10 @@ public class TradeAI : MonoBehaviour
                         try
                         {
                             List<GameShip> followers = DiscoverNewTraders();
-
+                           
                             foreach (GameShip follower in followers)
                             {
-                                TradeShips.Create(follower);
+                                AILogic.Create(follower);
                             }
                             AILogic.Update();
                         } catch (Exception e)
@@ -40,13 +39,18 @@ public class TradeAI : MonoBehaviour
                         }
                         yield return new WaitForSeconds(1f);
                 }
-                    else
+                else
                     {
                         yield return new WaitForSeconds(5f);
                     }
 
             }
         }
+    }
+
+    private void OnMapChanged()
+    {
+        AILogic.MapChanged();
     }
 
     IEnumerator DoNavigation()
@@ -63,7 +67,7 @@ public class TradeAI : MonoBehaviour
                 {
                     UnityEngine.Debug.LogException(e);
                 }
-                yield return new WaitForSeconds(0.5f);
+                yield return new WaitForSeconds(1f);
             }
             else
             {
@@ -111,7 +115,7 @@ public class TradeAI : MonoBehaviour
                     {
                         UnityEngine.Debug.LogException(e);
                     }
-                    yield return new WaitForSeconds(3f);
+                    yield return new WaitForSeconds(5f);
                 }
                 else
                 {
@@ -130,6 +134,7 @@ public class TradeAI : MonoBehaviour
         {
             foreach (GameShip ship in ships)
             {
+
                 if(ship.ai != null && ship.ai.followTarget != null && ship.ai.followTarget.id == MyPlayer.ship.id)
                 {
                     followers.Add(ship);
@@ -144,7 +149,9 @@ public class TradeAI : MonoBehaviour
         switch (msg)
         {
             case "stopTrading": StopTrading(); handled = true; break;
+
         }
+
     }
 
     private void StopTrading()

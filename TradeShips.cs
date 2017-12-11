@@ -21,25 +21,6 @@ public static class TradeShips
     }
 
 
-    public static void Create(GameShip gameShip)
-    {
-        if (gameShip.ai != null && gameShip.position != null)
-        {
-            gameShip.ai.NavigateTo(gameShip.position);
-        }
-        if (!REGISTRY.ContainsKey(gameShip.id))
-        {
-            TradeShip tradeShip = new TradeShip(gameShip);
-            TradeChat.Chat("Added new trader " + gameShip.name + " with " + tradeShip.CargoSlots + " cargo slots");
-            REGISTRY [gameShip.id] = tradeShip;
-        } else
-        {
-            TradeShip tradeShip = REGISTRY[gameShip.id];
-            GamePlayer owner = tradeShip.GetOwner();
-            TradeChat.Warn(gameShip.name + " is owned by " + owner.name);
-        }
-    }
-
     public static List<TradeShip> FindAll()
     {
         return REGISTRY.Values.ToList();
@@ -69,5 +50,9 @@ public static class TradeShips
     public static void RemoveAll(List<TradeShip> tradeShips)
     {
         tradeShips.ForEach(x=>Remove(x));
+    }
+    public static void RemoveAll()
+    {
+        REGISTRY.Clear();
     }
 }

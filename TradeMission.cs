@@ -18,11 +18,11 @@ public class TradeMission
     {
         if (StockedUp())
         {
-            if (!Destination.NeedsResource(ResourceName))
+            if (!Destination.NeedsResource(ResourceName) && !GameTownIsAlly(Destination))
             {
                 Valid = false;
             }
-        } else if(!Departure.HasResource(ResourceName))
+        } else if(!Departure.HasResource(ResourceName) && !GameTownIsAlly(Destination))
         {
             Valid = false;
         }
@@ -37,10 +37,24 @@ public class TradeMission
         return SalePrice - PlayerItem.gold;
     }
 
+    public void ReturnCargo()
+    {
+        if(StockedUp())
+        {
+            Departure.IncreaseProduction(ResourceName);
+        }
+        Valid = false;
+    }
+
     public override string ToString()
     {
         string translation = Localization.Get(ResourceName);
         return Departure.name + " wants to ship " + translation + " to " + Destination.name;
+    }
+
+    public static Boolean GameTownIsAlly(GameTown gameTown)
+    {
+        return (gameTown.factionID == 0 && MyPlayer.factionID == 0) || (MyPlayer.factionID > 0 && gameTown.factionID > 0);
     }
 
 }

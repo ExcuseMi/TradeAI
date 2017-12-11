@@ -14,7 +14,9 @@ public class TradeShip
     private Boolean RequestTradeMisison = true;
     public int CargoSlots { get; set; }
     public Boolean StopTrade { get; set; } = false;
-
+    public OriginalShipProperties OrginalShipProperties { get; set; }
+    public InvalidReason InvalidReason { get; set; } = InvalidReason.NONE;
+    public Boolean Fired { get; set; } = false;
 
     public TradeShip(GameShip gameShip)
     {
@@ -22,7 +24,9 @@ public class TradeShip
         this.Id = gameShip.id;
         this.tradeMissions = new List<TradeMission>();
         this.OwnerId = TNManager.playerID;
-        this.CargoSlots = GetCargoSlots(GameShip.unitType);
+        this.CargoSlots = GetCargoSlots(GameShip.prefabName);
+        this.OrginalShipProperties = OriginalShipProperties.Create(gameShip);
+        gameShip.Set("tradeOwner", TNManager.playerID);
     }
 
     public Boolean HasResource(string resource)
@@ -60,9 +64,19 @@ public class TradeShip
         }
     }
 
+    internal int Fire()
+    {
+        if(GameShip != null)
+        {
+            this.OrginalShipProperties.Apply(GameShip);
+
+        }
+        return GetCargoWorth();
+    }
+
     public void UpdateStatus()
     {
-        if(GameShip != null) {
+        if(IsValid()) {
             TradeMission currentTradeMission = tradeMissions.FirstOrDefault();
 
             if (currentTradeMission != null)
@@ -105,8 +119,6 @@ public class TradeShip
         GamePlayer gamePlayer = GetGamePlayer();
         if (gamePlayer != null)
         {
-            GameShip.hullColor0 = gamePlayer.ship.hullColor0;
-            GameShip.hullColor1 = gamePlayer.ship.hullColor1;
             GameShip.sailColor0 = gamePlayer.ship.sailColor0;
             GameShip.sailColor1 = gamePlayer.ship.sailColor1;
             GameShip.symbolTex = gamePlayer.ship.symbolTex;
@@ -120,14 +132,12 @@ public class TradeShip
 
     public void UpdateTradeMissions()
     {
-        if (GameShip != null && GameShip.position != null && GameShip.isActive)
+        if (IsValid())
         {
             tradeMissions.ForEach(x => x.Update());
             tradeMissions.RemoveAll(x => !x.Valid);
-            if(StopTrade)
-            {
-                tradeMissions.RemoveAll(x => !x.StockedUp());
-            }
+
+            tradeMissions.RemoveAll(x => !x.StockedUp());
             if (!StopTrade && tradeMissions.Count() < CargoSlots)
             {
                 List<TradeMission> newTradeMissions = TradeMissionCalculator.FindTradeMissions(GameShip.position, CargoSlots - tradeMissions.Count());
@@ -153,51 +163,57 @@ public class TradeShip
 
     private void Sell(GameTown gameTown)
     {
-        List<TradeMission> tradeMissionsToRemove = new List<TradeMission>();
-    
-        List<TradeMission> tradeMissionsCompleted = new List<TradeMission>();
-        foreach (TradeMission tradeMission in tradeMissions)
+        if (gameTown != null && GameShip.position != null)
         {
-            if(tradeMission.Destination.id.Equals(gameTown.id))
+            List<TradeMission> tradeMissionsToRemove = new List<TradeMission>();
+            List<TradeMission> tradeMissionsCompleted = new List<TradeMission>();
+            foreach (TradeMission tradeMission in tradeMissions.Where(m=>m.Valid))
             {
-                int salePrice = gameTown.Sell(tradeMission.PlayerItem);
-                if (salePrice != 0)
+                if (tradeMission.Destination != null && tradeMission.Destination.id.Equals(gameTown.id))
                 {
-                    tradeMission.SalePrice = salePrice;
-                    tradeMissionsCompleted.Add(tradeMission);
-                } else
-                {
-                    TradeMission newTradeMission = TradeMissionCalculator.FindATradeMissionForResource(tradeMission.ResourceName, tradeMission.Departure, GameShip.position);
-                    if (newTradeMission != null)
+                    int salePrice = gameTown.Sell(tradeMission.PlayerItem);
+                    if (salePrice != 0)
                     {
-                        tradeMission.Destination = newTradeMission.Destination;
+                        tradeMission.SalePrice = salePrice;
+                        tradeMission.Valid = false;
+                        tradeMissionsCompleted.Add(tradeMission);
                     }
                     else
                     {
-                        TradeChat.Chat(GameShip.name + "No towns in this region allow me to sell " + tradeMission.PlayerItem.name + ". Cargo destroyed, cost: " + tradeMission.PlayerItem.gold + "g");
-                        tradeMissionsToRemove.Add(tradeMission);
+                        TradeMission newTradeMission = TradeMissionCalculator.FindATradeMissionForResource(tradeMission.ResourceName, tradeMission.Departure, GameShip.position);
+                        if (newTradeMission != null)
+                        {
+                            tradeMission.Destination = newTradeMission.Destination;
+                        }
+                        else
+                        {
+                            TradeChat.Chat(GameShip.name + ": No towns in this region allow me to sell " + tradeMission.PlayerItem.name + ". Cargo destroyed, cost: " + tradeMission.PlayerItem.gold + "g");
+                            tradeMissionsToRemove.Add(tradeMission);
+                        }
                     }
                 }
             }
+
+            if (tradeMissionsCompleted.Count() > 0)
+            {
+                string[] resources = tradeMissionsCompleted
+                    .Select(m => Localization.Get(m.ResourceName))
+                    .GroupBy(x => x)
+                    .Select(g => g.Key + (g.Count() > 1 ? " (x" + g.Count() + ")" : "")).ToArray();
+                string resourcesCS = string.Join(", ", resources);
+                int profit = tradeMissionsCompleted
+                    .Select(m => m.GetProfit()).Sum();
+
+                TradeChat.Chat(GameShip.name + " sold " + resourcesCS + " at " + gameTown.name + ". " + (profit >= 0 ? "Profit" : "Loss") + " : " + profit + "g");
+                MyPlayer.saveNeeded = true;
+                MyPlayer.Sync();
+                RemoveTradeMissions(tradeMissionsCompleted);
+
+            }
+            RemoveTradeMissions(tradeMissionsToRemove);
+            MarkRequestNewTradeMissionsIfNeeded();
+            tradeMissions.Sort(new TradeMissionComparator());
         }
-
-        if (tradeMissionsCompleted.Count() > 0)
-        {
-            string[] resources = tradeMissionsCompleted
-                .Select(m => Localization.Get(m.ResourceName))
-                .GroupBy(x => x)
-                .Select(g => g.Key + (g.Count() > 1 ? " (x" + g.Count() + ")" : "")).ToArray();
-            string resourcesCS = string.Join(", ", resources);
-            int profit = tradeMissionsCompleted
-                .Select(m => m.GetProfit()).Sum();
-
-            TradeChat.Chat(GameShip.name + " sold " + resourcesCS + " at " + gameTown.name + ". " + (profit >= 0 ? "Profit" : "Loss") + " : " + profit + "g");
-            RemoveTradeMissions(tradeMissionsCompleted);
-
-        }
-        RemoveTradeMissions(tradeMissionsToRemove);
-        MarkRequestNewTradeMissionsIfNeeded();
-        tradeMissions.Sort(new TradeMissionComparator());
     }
 
 
@@ -206,7 +222,7 @@ public class TradeShip
     {
         List<TradeMission> tradeMissionsToRemove = new List<TradeMission>();
         List<TradeMission> tradeMissionsStockedUp = new List<TradeMission>();
-        foreach (TradeMission tradeMission in tradeMissions)
+        foreach (TradeMission tradeMission in tradeMissions.Where(m => m.Valid))
         {
             if (tradeMission.Departure.id.Equals(gameTown.id))
             {
@@ -286,7 +302,9 @@ public class TradeShip
     {
         TNet.DataNode ships = GameConfig.ships;
         if (ships == null || ships.children.size == 0)
+        {
             return DEFAULT_CARGO_SLOTS;
+        }
         TNet.DataNode child1 = ships.GetChild(name);
         if (child1 == null)
             return DEFAULT_CARGO_SLOTS;
@@ -301,6 +319,46 @@ public class TradeShip
 
     public Boolean IsValid()
     {
-        return GameShip != null && GameShip.isActive; 
+        if(this.InvalidReason != InvalidReason.NONE) {
+            return false;
+        }
+        if(GameShip == null || !GameShip.isActive)
+        {
+            this.InvalidReason = InvalidReason.NON_ACTIVE;
+            return false;
+        }
+        if (IsFired())
+        {
+            this.InvalidReason = InvalidReason.FIRED;
+            return false;
+        }
+        if (StopTrade && tradeMissions.Count() == 0)
+        {
+            this.InvalidReason = InvalidReason.STOP_TRADING;
+            return false;
+        }
+        return true;
+    }
+
+    public int GetCargoWorth()
+    {
+        if (IsValid())
+        {
+            return tradeMissions.Where(m => m.StockedUp()).Select(m => m.PlayerItem.gold).Sum();
+        }
+        return 0;
+    }
+
+    public void ReturnCargo()
+    {
+        if (IsValid())
+        {
+            tradeMissions.ForEach(m => m.ReturnCargo());
+        }
+    }
+
+    public Boolean IsFired()
+    {
+        return Fired;
     }
 }
