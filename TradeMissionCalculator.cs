@@ -10,10 +10,10 @@ static class TradeMissionCalculator
      * TODO Implement a real Trading algorithm, this works for testing
      * 
      */
-    public static List<TradeMission> FindTradeMissions(Vector3 position, int howMany)
+    public static List<TradeMission> FindTradeMissions(GameShip gameShip, int howMany)
     {
-        GameTown[] gameTowns = GameWorld.FindObjectsOfType<GameTown>().Where(t=>TradeMission.GameTownIsAlly(t)).ToArray();
-        Array.Sort(gameTowns, new TownByProximityComparator(position));
+        GameTown[] gameTowns = GameWorld.FindObjectsOfType<GameTown>().Where(t=> TradeShip.GameTownIsAlly(gameShip, t)).ToArray();
+        Array.Sort(gameTowns, new TownByProximityComparator(gameShip.position));
         List<TradeMission> newTradeMissions = new List<TradeMission>();
         if (gameTowns != null && gameTowns.Count() > 0)
         {
@@ -35,7 +35,7 @@ static class TradeMissionCalculator
                             GameTown buyer = FindBuyer(production.name, gameTowns.Where(x => !x.name.Equals(gameTown.name)).ToArray(), allCurrentTradeMissions);
                             while (count > 0 && buyer != null)
                             {
-                                newTradeMissions.Add(new TradeMission() { ResourceName = production.name, Departure = gameTown, Destination = buyer });
+                                newTradeMissions.Add(new TradeMission() { ResourceName = production.name, Departure = gameTown.id, Destination = buyer.id });
                                 if (newTradeMissions.Count() >= howMany)
                                 {
                                     return newTradeMissions;
@@ -67,7 +67,7 @@ static class TradeMissionCalculator
             GameTown buyer = FindBuyer(resourceName, gameTowns.Where(x=>!x.name.Equals(departure.name)).ToArray(), tradeMissions);
             if (buyer != null)
             {
-                return new TradeMission() { ResourceName = resourceName, Departure = departure, Destination = buyer };
+                return new TradeMission() { ResourceName = resourceName, Departure = departure.id, Destination = buyer.id };
             }
         }
         return null;
@@ -100,20 +100,19 @@ static class TradeMissionCalculator
             return 0;
         }
         int production = departure.GetProduction(resourceName);
-        production -= allTradeMissionsForResource.Where(m => !m.StockedUp() && m.Departure != null && m.Departure.name.Equals(departure.name)).Count();
+        production -= allTradeMissionsForResource.Where(m => !m.StockedUp() && m.Departure.Equals(departure.id)).Count();
         return production;
     }
 
     private static Boolean CanSell(string resourceName, GameTown destination, List<TradeMission> allTradeMissionsForResource)
     {
         int demand = destination.GetDemand(resourceName);
-        demand -= allTradeMissionsForResource.Where(m => m.Destination.name.Equals(destination.name)).Count();
+        demand -= allTradeMissionsForResource.Where(m => m.Destination.Equals(destination.id)).Count();
         return demand > 0;
     }
 
     private static List<TradeMission> FindAll()
     {
-        List<TradeShip> tradeShips = TradeShips.FindAll();
-        return tradeShips.SelectMany(s => s.tradeMissions).ToList();
+       return AILogic.FindAllTraders().SelectMany(x => x.ReadTradeMissions()).ToList();
     }
 }

@@ -1,60 +1,55 @@
 ﻿using System;
+using TNet;
 
 public class TradeMission
 {
-    public GameTown Departure { get; set; }
-    public GameTown Destination { get; set; }
+    public int Departure { get; set; }
+    public int Destination { get; set; }
     public String ResourceName { get; set; }
-    public int SalePrice { get; set; }
-    public PlayerItem PlayerItem { get; set; }
+    public int PurchasePrice { get; set; } = -1;
     public Boolean Valid { get; set; } = true;
-    public Boolean NotEnoughFunds { get; set; }
+    public Boolean Completed { get; set; } = false;
+
+    public TNet.DataNode ToDataNode()
+    {
+        var parent = new TNet.DataNode("TradeMission");
+        parent.AddChild("Departure", Departure);
+        parent.AddChild("Destination", Destination);
+        parent.AddChild("ResourceName", ResourceName);
+        parent.AddChild("PurchasePrice", PurchasePrice);
+        parent.AddChild("Valid", Valid);
+        parent.AddChild("Completed", Completed);
+        return parent;
+    }
+
+    public static TradeMission FromDataNode(TNet.DataNode dataNode)
+    {
+        return new TradeMission()
+        {
+            Departure = dataNode.GetChild<int>("Departure"),
+            Destination = dataNode.GetChild<int>("Destination"),
+            ResourceName = dataNode.GetChild<string>("ResourceName"),
+            PurchasePrice = dataNode.GetChild<int>("PurchasePrice"),
+            Valid = dataNode.GetChild<Boolean>("Valid"),
+            Completed = dataNode.GetChild<Boolean>("Completed")
+        };
+    }
+
     public Boolean StockedUp()
     {
-        return PlayerItem != null;
+        return PurchasePrice != -1;
     }
 
-    public void Update()
+    public GameTown GetDestination()
     {
-        if (StockedUp())
-        {
-            if (!Destination.NeedsResource(ResourceName) && !GameTownIsAlly(Destination))
-            {
-                Valid = false;
-            }
-        } else if(!Departure.HasResource(ResourceName) && !GameTownIsAlly(Destination))
-        {
-            Valid = false;
-        }
+        return FindGameTown(Destination);
     }
-
-    public int GetProfit()
+    public GameTown GetDeparture()
     {
-        if(PlayerItem == null)
-        {
-            return 0;
-        }
-        return SalePrice - PlayerItem.gold;
+        return FindGameTown(Departure);
     }
-
-    public void ReturnCargo()
+    private GameTown FindGameTown(int id)
     {
-        if(StockedUp())
-        {
-            Departure.IncreaseProduction(ResourceName);
-        }
-        Valid = false;
+        return GameTown.Find(id);
     }
-
-    public override string ToString()
-    {
-        string translation = Localization.Get(ResourceName);
-        return Departure.name + " wants to ship " + translation + " to " + Destination.name;
-    }
-
-    public static Boolean GameTownIsAlly(GameTown gameTown)
-    {
-        return (gameTown.factionID == 0 && MyPlayer.factionID == 0) || (MyPlayer.factionID > 0 && gameTown.factionID > 0);
-    }
-
 }

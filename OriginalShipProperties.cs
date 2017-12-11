@@ -21,5 +21,21 @@ public class OriginalShipProperties
         gameShip.sailColor1 = sailColor1;
         gameShip.symbolTex = symbolTex;
     }
+
+    public TNet.DataNode Convert()  
+    {
+        TNet.DataNode dataNode = new TNet.DataNode("OriginalShipProperties");
+        dataNode.AddChild("sailColor0", sailColor0);
+        dataNode.AddChild("sailColor1", sailColor1);
+        dataNode.AddChild("symbolTex", symbolTex);
+
+        return dataNode;
+    }
+
+    public static OriginalShipProperties FromData(TNet.DataNode dataNode)
+    {
+        return new OriginalShipProperties() { sailColor0 = dataNode.GetChild<Color>("sailColor0"), sailColor1 = dataNode.GetChild<Color>("sailColor1"), symbolTex = dataNode.GetChild<string>("symbolTex") };
+
+    }
 }
 

@@ -47,18 +47,16 @@
   <ItemGroup>
     <Compile Include="AILogic.cs" />
     <Compile Include="InvalidReason.cs" />
-    <Compile Include="Market.cs" />
     <Compile Include="OriginalShipProperties.cs" />
+    <Compile Include="ListToTNetList.cs" />
     <Compile Include="TownByProximityComparator.cs" />
     <Compile Include="TradeAI.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TradeChat.cs" />
     <Compile Include="TradeMissionComparator.cs" />
-    <Compile Include="TradeProposal.cs" />
     <Compile Include="TradeShip.cs" />
     <Compile Include="TradeMission.cs" />
     <Compile Include="TradeMissionCalculator.cs" />
-    <Compile Include="TradeShips.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

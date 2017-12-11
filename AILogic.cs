@@ -7,84 +7,53 @@ using UnityEngine;
 
 public class AILogic
 {
-    const int MAX_TRADERS = 3;
-
-    public static Boolean Create(GameShip gameShip)
+    public static void UpdateSales()
     {
-
-        TradeShip tradeShip = TradeShips.Find(gameShip);
-        if (gameShip.ai != null && gameShip.position != null)
+        var myTraders = FindMyTraders();
+        foreach (TradeShip tradeShip in FindMyTraders())
         {
-            gameShip.ai.NavigateTo(gameShip.position, 5);
-        }
-        if (tradeShip == null)
-        {
-            if (TradeShips.FindAll().Count() < MAX_TRADERS)
+            if (tradeShip.IsValid())
             {
-                TradeShip newTradeShip = new TradeShip(gameShip);
-                TradeChat.Chat("Added new trader " + gameShip.name + " with " + newTradeShip.CargoSlots + " cargo slots");
-                TradeShips.Store(newTradeShip);
-                    return true;
-            }
-            else
-            {
-                TradeChat.Warn("Trader limit of " + MAX_TRADERS + " has been reached.");
+                tradeShip.PlayerSell();
             }
         }
-        else
-        {
-            if (tradeShip.OwnerId != TNManager.playerID)
-            {
-                GamePlayer owner = tradeShip.GetOwner();
-                TradeChat.Warn(gameShip.name + " is owned by " + owner.name);
-            }
-            else
-            {
-                tradeShip.Fired = true;
-                //TradeChat.Chat("You fired trader " + tradeShip.GameShip.name + "!");
-                //TradeShips.Remove(tradeShip);
-            }
-        }
-        return false;
     }
 
-    public static void Update()
+    public static void UpdateTradeMissions()
     {
-        List<TradeShip> tradeShipsToRemove = new List<TradeShip>();
-        List<TradeShip> tradeShips = TradeShips.FindAll();
-        foreach (TradeShip tradeShip in tradeShips)
+        foreach (TradeShip tradeShip in FindMyNPCs())
         {
             if (tradeShip.IsValid())
             {
                 tradeShip.UpdateShip();
-            }
-            else
-            {
-                int cost = tradeShip.Fire();
-                InvalidReason invalidReason = tradeShip.InvalidReason;
-                switch (invalidReason)
-                {
-                    case InvalidReason.NON_ACTIVE:
-                        TradeChat.Chat("Removed trader " + tradeShip.GameShip.name + " because of inactivty");
-                        break;
-                    case InvalidReason.FIRED:
-                        TradeChat.Chat("You fired trader " + tradeShip.GameShip.name + "! Cargo lost: " + cost + "g");
-                        break;
-                    case InvalidReason.STOP_TRADING:
-                        TradeChat.Chat("You fired trader " + tradeShip.GameShip.name + " because of /stopTrading command!");
-                        break;
-
-                }
-                tradeShipsToRemove.Add(tradeShip);
+                tradeShip.UpdateTradeMissions();
             }
         }
-        TradeShips.RemoveAll(tradeShipsToRemove);
     }
 
-    public static void UpdateStatus()
+    public static void UpdateNavigation()
     {
-        List<TradeShip> tradeShips = TradeShips.FindAll();
-        foreach (TradeShip tradeShip in tradeShips)
+        foreach (TradeShip tradeShip in FindMyNPCs())
+        {
+            if (tradeShip.IsValid())
+            {
+                tradeShip.UpdateNavigation();
+            }
+        }
+    }
+    internal static void StopTrading()
+    {
+        foreach (TradeShip tradeShip in FindMyTraders()) {
+            if (tradeShip.IsValid())
+            {
+                tradeShip.SetStopTrade(true);
+            }
+        }
+    }
+
+    internal static void UpdateStatus()
+    {
+        foreach (TradeShip tradeShip in FindMyTraders())
         {
             if (tradeShip.IsValid())
             {
@@ -93,52 +62,66 @@ public class AILogic
         }
     }
 
-    public static void UpdateNavigation()
+
+    internal static void UpdateTownInteraction()
     {
-        List<TradeShip> tradeShips = TradeShips.FindAll();
-        foreach (TradeShip tradeShip in tradeShips)
+        foreach (TradeShip tradeShip in FindMyNPCs())
         {
             if (tradeShip.IsValid())
             {
-                tradeShip.UpdateNavigation();
+                tradeShip.UpdateTownInteraction();
             }
         }
     }
 
-    public static void UpdateTradeMissions()
+    internal static TradeShip[] FindMyTraders()
     {
-        List<TradeShip> tradeShips = TradeShips.FindAll();
-        foreach (TradeShip tradeShip in tradeShips)
-        {
-            if (tradeShip.IsValid())
-            {
-                tradeShip.UpdateTradeMissions();
-            }
-        }
+        GameShip[] ships = GameWorld.FindObjectsOfType<GameShip>();
+        int playerId = TNManager.playerID;
+        return ships
+            .Where(s => s.player == null && s.factionID != 0)
+            .Select(s => new TradeShip(s))
+            .Where(t => t.GetTraderOwnerId().HasValue && t.GetTraderOwnerId().Value == playerId).ToArray();
     }
 
-    internal static void StopTrading()
+    internal static TradeShip[] FindMyNPCs()
     {
-        List<TradeShip> tradeShips = TradeShips.FindAll();
-        foreach (TradeShip tradeShip in tradeShips) {
-            if (tradeShip.IsValid())
-            {
-                tradeShip.StopTrade = true;
-            }
-        }
+        GameShip[] ships = GameWorld.FindObjectsOfType<GameShip>();
+        int playerId = TNManager.playerID;
+        return ships
+            .Where(s => s.player == null &&  s.ownerID == playerId && s.factionID != 0)
+            .Select(s => new TradeShip(s))
+            .Where(t => t.GetOwner() != null)
+            .ToArray();
     }
 
-    internal static void MapChanged()
+    internal static TradeShip[] FindAllNPCs()
     {
-        List<TradeShip> tradeShips = TradeShips.FindAll();
-        int cargoWorth = tradeShips.Select(s => s.Fire()).Sum();
-        tradeShips.ForEach(s => s.ReturnCargo());
-        if (cargoWorth > 0)
-        {
-            TradeChat.Chat("All traders have been removed because of a region change, their cargo has been refunded to you.");
-            MyPlayer.ModifyResource("gold", cargoWorth, true);
-            MyPlayer.syncNeeded = true;
-        }
-        TradeShips.RemoveAll();
+        GameShip[] ships = GameWorld.FindObjectsOfType<GameShip>();
+        int playerId = TNManager.playerID;
+        return ships
+            .Where(s => s.player == null && s.factionID != 0)
+            .Select(s => new TradeShip(s)).ToArray();
+    }
+
+    internal static TradeShip[] FindAllTraders()
+    {
+        GameShip[] ships = GameWorld.FindObjectsOfType<GameShip>();
+        int playerId = TNManager.playerID;
+        return ships
+            .Where(s => s.player == null && s.factionID != 0)
+            .Select(s => new TradeShip(s))
+            .Where(t => t.GetOwner() != null).ToArray();
+    }
+
+    internal static TradeShip[] FindAllNPCsWherePlayerNearby()
+    {
+        GameShip[] ships = GameWorld.FindObjectsOfType<GameShip>();
+        int playerId = TNManager.playerID;
+        return ships
+            .Where(s => s.player == null && !s.playerControlled && s.factionID != 0 && s.isPlayerClose)
+            .Select(s => new TradeShip(s))
+            .Where(t => t.GetOwner() != null)
+            .ToArray();
     }
 }
