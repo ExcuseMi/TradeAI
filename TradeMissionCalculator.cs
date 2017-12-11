@@ -113,6 +113,7 @@ static class TradeMissionCalculator
 
     private static List<TradeMission> FindAll()
     {
-       return AILogic.FindAllTraders().SelectMany(x => x.ReadTradeMissions()).ToList();
+       //return AILogic.FindAllTraders().SelectMany(x => x.ReadTradeMissions()).ToList();
+        return new List<TradeMission>();
     }
 }
