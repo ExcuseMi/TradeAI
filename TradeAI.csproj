@@ -7,8 +7,8 @@
     <ProjectGuid>{7201A0B2-527F-4E73-AEBE-94D0BAD0767E}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>TradeAI</RootNamespace>
-    <AssemblyName>TradeAI</AssemblyName>
+    <RootNamespace>Trader</RootNamespace>
+    <AssemblyName>Trader</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
@@ -25,7 +25,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>..\</OutputPath>
+    <OutputPath>..\..\Trader\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -46,11 +46,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ListToTNetList.cs" />
+    <Compile Include="MyTradePlayer.cs" />
     <Compile Include="TownByProximityComparator.cs" />
-    <Compile Include="TradeAI.cs" />
+    <Compile Include="Trader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TradeChat.cs" />
     <Compile Include="TradeMissionComparator.cs" />
+    <Compile Include="QuestHireTrader.cs" />
+    <Compile Include="TraderFactory.cs" />
     <Compile Include="TradeShip.cs" />
     <Compile Include="TradeMission.cs" />
     <Compile Include="TradeMissionCalculator.cs" />

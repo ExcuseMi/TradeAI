@@ -23,4 +23,14 @@ public static class TradeChat
     {
         UIGameChat.AddCurrent(message, Color.red);
     }
+
+    public static void DebugQuest(string message)
+    {
+        UIGameChat.AddCurrent(message, Color.red);
+    }
+
+    public static void DebugTradeShip(string message)
+    {
+        UIGameChat.AddCurrent(message, Color.cyan);
+    }
 }
