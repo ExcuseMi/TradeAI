@@ -5,7 +5,6 @@ using System.Text;
 using UnityEngine;
 using Tasharen;
 using System.Collections;
-
 [RequireComponent(typeof(GameShip))]
 public class TradeShip : TNBehaviour
 {
@@ -21,7 +20,6 @@ public class TradeShip : TNBehaviour
 
 
 
-
     protected override void OnEnable()
     {
         base.OnEnable();
@@ -30,7 +28,6 @@ public class TradeShip : TNBehaviour
         StartCoroutine(DoUpdateTradeMissions());
         StartCoroutine(DoStatusUpdates());
         StartCoroutine(DoUpdateNavigation());
-        gameShip.spawnOnDeath = "yes";
     }
 
     protected virtual void OnDisable()
@@ -38,7 +35,7 @@ public class TradeShip : TNBehaviour
         StopCoroutine(DoUpdateTradeMissions());
         StopCoroutine(DoStatusUpdates());
         StopCoroutine(DoUpdateNavigation());
-        tno.Send("OnUpdateShip", TNet.Target.All, sailColor0, sailColor1, symbolTex);
+        tno.Send("OnUpdateShip", TNet.Target.AllSaved, sailColor0, sailColor1, symbolTex);
     }
 
     IEnumerator DoUpdateTradeMissions()
@@ -120,12 +117,14 @@ public class TradeShip : TNBehaviour
     [TNet.RFC]
     protected void OnUpdateTradeMissions(TNet.List<TNet.DataNode> tradeMissions)
     {
+        TradeChat.DebugTradeShip("UPD TradeMissions");
         this.TradeMissions = ListToTNetList<TNet.DataNode, TradeMission>.From(tradeMissions, m => TradeMission.FromDataNode(m));
     }
 
     public void UpdateTradeMissions(List<TradeMission> tradeMissions)
     {
-        tno.Send("OnUpdateTradeMissions", TNet.Target.All, ListToTNetList<TradeMission, TNet.DataNode>.To(tradeMissions, m => m.ToDataNode()));
+        TradeChat.DebugTradeShip("SEND UPD TradeMissions");
+        tno.Send("OnUpdateTradeMissions", TNet.Target.AllSaved, ListToTNetList<TradeMission, TNet.DataNode>.To(tradeMissions, m => m.ToDataNode()));
     }
 
     public Boolean HasResource(string resource)
@@ -209,7 +208,6 @@ public class TradeShip : TNBehaviour
 
     internal void Activate()
     {
-        this.Owner = null;
         var gameShip = GetGameShip();
         tno.onDestroy += Dettach;
         this.TradeMissions = new List<TradeMission>();
@@ -221,22 +219,25 @@ public class TradeShip : TNBehaviour
         Activate();
     }
 
-    public void AddHudText(string message, float duration, bool localized = false)
+    public void AddHudText(string message, float duration)
     {
 
-        tno.Send("OnAddHudText", TNet.Target.All, message, duration, localized);
+        TradeChat.DebugTradeShip("SND update Hud");
+        tno.Send("OnAddHudText", TNet.Target.All, message, duration);
     }
 
     [TNet.RFC]
-    protected void OnAddHudText(string message, float duration, bool localized)
+    protected void OnAddHudText(string message, float duration)
     {
+        TradeChat.DebugTradeShip("UPD update Hud");
+
         if (Owner != null && Owner.id == MyPlayer.id)
         {
             Color GREEN = new Color(111, 206, 101);
-            GetGameShip().AddHudText(message, GREEN, duration, localized);
+            GetGameShip().AddHudText(message, GREEN, duration, false);
         } else
         {
-            GetGameShip().AddHudText(message, Color.gray, duration, localized);
+            GetGameShip().AddHudText(message, Color.gray, duration, false);
         }
     }
 
@@ -249,7 +250,7 @@ public class TradeShip : TNBehaviour
             var gamePlayer = GamePlayer.Find(Owner.id);
             if (GameShip.sailColor0 != gamePlayer.ship.sailColor0 || GameShip.sailColor1 != gamePlayer.ship.sailColor1 || GameShip.symbolTex != gamePlayer.ship.symbolTex)
             {
-                tno.Send("OnUpdateShip", TNet.Target.All, gamePlayer.ship.sailColor0, gamePlayer.ship.sailColor1, gamePlayer.ship.symbolTex);
+                tno.Send("OnUpdateShip", TNet.Target.AllSaved, gamePlayer.ship.sailColor0, gamePlayer.ship.sailColor1, gamePlayer.ship.symbolTex);
             }
         }
     }
@@ -305,9 +306,8 @@ public class TradeShip : TNBehaviour
             List<TradeMission> tradeMissionsToRemove = new List<TradeMission>();
             foreach (TradeMission tradeMission in TradeMissions.Where(m => m.Valid))
             {
-                if (tradeMission.Destination.Equals(gameTown.id))
+                if (tradeMission.StockedUp() && tradeMission.Destination.Equals(gameTown.id))
                 {
-                    PlayerItem playerItem = CreatePlayerItemForResource(tradeMission.GetDeparture(), tradeMission.ResourceName, tradeMission.PurchasePrice);
                     int demand = gameTown.GetDemand(tradeMission.ResourceName);
                     if (demand > 0)
                     {
@@ -381,7 +381,7 @@ public class TradeShip : TNBehaviour
         var playerItem = CreatePlayerItemForResource(gameTown, resourceName, purchasePrice);
         TradeChat.DebugTradeShip("Sale gold of playeritem: " + playerItem.gold);
         int salePrice = gameTown.Sell(playerItem);
-        if (salePrice != 0)
+        if (salePrice > 0)
         {
             MyPlayer.ModifyResource("gold", -purchasePrice, true);
             int profit = salePrice - purchasePrice;
@@ -403,6 +403,8 @@ public class TradeShip : TNBehaviour
     private void OnClick() {
         UIPopupList popupList = UIGameWindow.popupList;
         popupList.Clear();
+
+        TradeChat.Chat("Clicked on " + gameShip.name + " owned by " + GetOwner()?.name );
         if (Owner == null)
         {
             string gold = GameTools.FormatGold(CalculatePrice(), false, true);
@@ -412,6 +414,7 @@ public class TradeShip : TNBehaviour
         {
             string gold = GameTools.FormatGold(CalculatePrice(), false, true);
             popupList.AddItem(Localization.Format("Fire as trader", gameShip.name), "fire");
+            popupList.AddItem(Localization.Format("Upgrade for 1000g", gameShip.name), "upgrade");
             EventDelegate.Set(popupList.onChange, new EventDelegate.Callback(FirePopupCallBack));
         } else
         {
@@ -438,10 +441,48 @@ public class TradeShip : TNBehaviour
         int price = CalculatePrice();
         UpdateTraderOwner(null);
         UIPopupList popupList = UIGameWindow.popupList;
+        string data = UIPopupList.current.data as string;
         popupList.Clear();
-        UIStatusBar.Show(Localization.Format("Fired", gameShip.name));
+        switch(data)
+        {
+            case "fire":
+                UpdateTraderOwner(null);
+                UIStatusBar.Show(Localization.Format("Fired", gameShip.name));
+                break;
+            case "upgrade":
+                UpgradeShip();
+                break;
+        }
         EventDelegate.Remove(popupList.onChange, new EventDelegate.Callback(FirePopupCallBack));
 
+    }
+
+    private void UpgradeShip()
+    {
+        Spawn(name, "Corvette", gameShip.factionID, gameShip.position, gameShip.angle);
+    }
+
+    private void Spawn(string name,  string shipPrefab, int factionId, Vector3 position, float angle)
+    {
+
+        GameShip.Create(name, shipPrefab, factionId, position, angle, 1);
+
+        this.InvokeRepeating("UpgradeReplacingTrader", 0.5f, 0.1f);
+    }
+
+    private void UpgradeReplacingTrader()
+    {
+        var possibleTrader = GameWorld.FindObjectsOfType<GameShip>().Where(x => x.name.Equals(gameShip.name)).FirstOrDefault();
+        if (possibleTrader != null)
+        {
+            TradeShip traderShip = possibleTrader.GetComponent<TradeShip>();
+            if (traderShip == null)
+            {
+                possibleTrader.gameObject.AddMissingComponent<TradeShip>().Activate();
+                tno.DestroySelf();
+            }
+        }
+        this.CancelInvoke("UpgradeReplacingTrader");
     }
 
     private int CalculatePrice()
@@ -462,7 +503,7 @@ public class TradeShip : TNBehaviour
         foreach (TradeMission tradeMission in tradeMissions.Where(m => m.Valid))
         {
             var departure = tradeMission.GetDeparture();
-            if (departure.id.Equals(gameTown.id))
+            if (!tradeMission.StockedUp() && departure.id.Equals(gameTown.id))
             {
 
                 var production = departure.GetProduction(tradeMission.ResourceName);
@@ -505,8 +546,6 @@ public class TradeShip : TNBehaviour
         playerItem.SetStat(resourceName, 1);
         playerItem.SetStat("Level", GameZone.challengeLevel);
         playerItem.type = "Shipment";
-        playerItem.SetStat(resourceName, 1);
-        playerItem.SetStat("Level", GameZone.challengeLevel);
         return playerItem;
     }
 
@@ -552,10 +591,10 @@ public class TradeShip : TNBehaviour
         if (playerId.HasValue)
         {
             TradeChat.DebugTradeShip("Updating playerId " + playerId.Value);
-            tno.Send("OnUpdateTraderOwner", TNet.Target.All, playerId.Value);
+            tno.Send("OnUpdateTraderOwner", TNet.Target.AllSaved, playerId.Value);
         } else
         {
-            tno.Send("OnClearTraderOwner", TNet.Target.All);
+            tno.Send("OnClearTraderOwner", TNet.Target.AllSaved);
         }
     }
 

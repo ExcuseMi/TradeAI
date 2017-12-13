@@ -12,25 +12,39 @@ public static class TradeChat
     public static void Chat(string message)
     {
         UIGameChat.AddCurrent(message, GREEN);
+        Log(message);
+
     }
 
     public static void Bad(string message)
     {
         UIGameChat.AddCurrent(message, ORANGE);
+
+        Log(message);
+
     }
 
     public static void Warn(string message)
     {
         UIGameChat.AddCurrent(message, Color.red);
+        Log(message);
+
     }
 
     public static void DebugQuest(string message)
     {
         UIGameChat.AddCurrent(message, Color.red);
+        Log(message);
     }
 
     public static void DebugTradeShip(string message)
     {
         UIGameChat.AddCurrent(message, Color.cyan);
+        Log(message);
+    }
+
+    public static void Log(string message)
+    {
+        UnityEngine.Debug.Log(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + ": " + message);
     }
 }

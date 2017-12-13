@@ -17,21 +17,38 @@ public class Trader : MonoBehaviour
         {
             isRunning = true;
             UIGameChat.onCommand += ChatInput;
-            
+            TNManager.onObjectCreated += UpdateToTradeShip;
+
             for (; ; )
             {
                 if (MyPlayer.ship != null)
                 {
+                    if (MyPlayer.ownedShip.gameObject.GetComponent<QuestHireTrader>() == null)
+                    {
+                        //MyPlayer.ownedShip.gameObject.AddMissingComponent<QuestHireTrader>();
+                    }
                     MyPlayer.ship.speedLimiter = 5f;
-
                 }
-                yield return new WaitForSeconds(5);
+                yield return new WaitForSeconds(1);
 
             }
         }
         yield return new WaitForEndOfFrame();
     }
 
+    private void UpdateToTradeShip(GameObject go)
+    {
+        GameShip gameShip = go.GetComponent<GameShip>();
+
+        if (gameShip != null)
+        {
+            if (gameShip.tno.isMine && gameShip.factionID != 0 && gameShip.player == null)
+            {
+               go.AddMissingComponent<TradeShip>().Activate();
+            }
+
+        }
+    }
 
     public static TradeShip FindTradeShip(int id)
     {

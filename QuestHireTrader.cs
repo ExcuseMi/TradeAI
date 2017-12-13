@@ -29,10 +29,12 @@ public class QuestHireTrader : Quest
 
     protected override void OnInit()
     {
-        activeBonuses.Clear();
-        activeBonuses.Add(Bonus.Trader);
-
-        if ((UnityEngine.Object)MyPlayer.ownedShip == (UnityEngine.Object)this.mUnit)
+        if (activeBonuses != null)
+        {
+            activeBonuses.Clear();
+            activeBonuses.Add(Bonus.Trader);
+        }
+        if (this.mUnit != null && MyPlayer.ownedShip == this.mUnit)
         {
             if (!QuestPirate.FindSuitableSpawn(this.mUnit.position, new PFQuery.OnPathCallback(this.CreateTrader)))
             {
