@@ -118,6 +118,6 @@ static class TradeMissionCalculator
 
     public static List<TradeShip> FindAllTraders()
     {
-        return GameWorld.FindObjectsOfType<TradeShip>().ToList();
+        return GameWorld.FindObjectsOfType<TradeShip>().Where(x=> x.Owner != null && x.Owner.id == MyPlayer.id).ToList();
     }
 }

@@ -10,93 +10,31 @@ public class TradeShip : TNBehaviour
 {
     public GameShip gameShip { get; set; }
     const float RANGE = 8f;
+    const int CONST_BASE_PRICE = 10;
     const int DEFAULT_CARGO_SLOTS = 2;
+    const int PIRATE_CONVERSION_MULTIPLIER = 3;
+    public int cost;
+    public int profit = 0;
+
     public TNet.Player Owner;
-    public Color sailColor0;
-    public Color sailColor1;
-    public string symbolTex;
+
     [NonSerialized]
     public List<TradeMission> TradeMissions = new List<TradeMission>();
-
-
 
     protected override void OnEnable()
     {
         base.OnEnable();
         this.gameShip = this.GetComponent<GameShip>();
         this.gameShip.onDeath += new GameShip.DeathCallback(this.Died);
-        StartCoroutine(DoUpdateTradeMissions());
-        StartCoroutine(DoStatusUpdates());
-        StartCoroutine(DoUpdateNavigation());
+        StartCoroutine(DoUpdateShipToPlayer());
     }
 
     protected virtual void OnDisable()
     {
-        StopCoroutine(DoUpdateTradeMissions());
-        StopCoroutine(DoStatusUpdates());
-        StopCoroutine(DoUpdateNavigation());
-        tno.Send("OnUpdateShip", TNet.Target.AllSaved, sailColor0, sailColor1, symbolTex);
+        StopCoroutine(DoUpdateShipToPlayer());
+
     }
 
-    IEnumerator DoUpdateTradeMissions()
-    {
-        for (; ; )
-        {
-            try
-            {
-                if (TNManager.isHosting)
-                {
-                    UpdateTradeMissions();
-                }
-            }
-            catch (Exception e)
-            {
-                UnityEngine.Debug.Log(e);
-            }
-            yield return new WaitForSeconds(4f);
-        }
-    }
-
-
-    IEnumerator DoUpdateNavigation()
-    {
-        for (; ; )
-        {
-            try
-            {
-                if (TNManager.isHosting)
-                {
-                    UpdateNavigation();
-                }
-            }
-            catch (Exception e)
-            {
-                UnityEngine.Debug.Log(e);
-            }
-            yield return new WaitForSeconds(0.5f);
-
-        }
-    }
-
-    IEnumerator DoStatusUpdates()
-    {
-        for (; ; )
-        {
-            try
-            {
-                if (TNManager.isHosting)
-                {
-                    UpdateShip();
-                    UpdateStatus();
-                }
-            } catch (Exception e)
-            {
-                UnityEngine.Debug.Log(e);
-            }
-            yield return new WaitForSeconds(3f);
-
-        }
-    }
 
     private void Died(GameShip ship)
     {
@@ -109,27 +47,14 @@ public class TradeShip : TNBehaviour
         return gameShip;
     }
 
-    public void SaveTradeMissions()
-    {
-        UpdateTradeMissions(TradeMissions);
-    }
-
-    [TNet.RFC]
-    protected void OnUpdateTradeMissions(TNet.List<TNet.DataNode> tradeMissions)
-    {
-        TradeChat.DebugTradeShip("UPD TradeMissions");
-        this.TradeMissions = ListToTNetList<TNet.DataNode, TradeMission>.From(tradeMissions, m => TradeMission.FromDataNode(m));
-    }
-
-    public void UpdateTradeMissions(List<TradeMission> tradeMissions)
-    {
-        TradeChat.DebugTradeShip("SEND UPD TradeMissions");
-        tno.Send("OnUpdateTradeMissions", TNet.Target.AllSaved, ListToTNetList<TradeMission, TNet.DataNode>.To(tradeMissions, m => m.ToDataNode()));
-    }
-
     public Boolean HasResource(string resource)
     {
         return TradeMissions.Where(x => x.StockedUp() && x.ResourceName.Equals(resource)).Any();
+    }
+
+    internal void SetTradeMissions(List<TradeMission> tradeMissions)
+    {
+        this.TradeMissions = tradeMissions;
     }
 
     public void UpdateNavigation()
@@ -171,38 +96,41 @@ public class TradeShip : TNBehaviour
     public void UpdateStatus()
     {
         var GameShip = GetGameShip();
+        if(GameShip.ai.state != AIShip.State.Combat) { 
+            var tradeMissions = TradeMissions;
+            TradeMission currentTradeMission = tradeMissions.FirstOrDefault();
 
-        var tradeMissions = TradeMissions;
-        TradeMission currentTradeMission = tradeMissions.FirstOrDefault();
-
-        if (currentTradeMission != null)
-        {
-            Boolean selling = currentTradeMission.StockedUp();
-            GameTown currentDestinationTown = selling ? currentTradeMission.GetDestination() : currentTradeMission.GetDeparture();
-            AIShip aiShip = GameShip.GetComponent<AIShip>();
-            if (aiShip != null)
+            if (currentTradeMission != null)
             {
-                if (selling)
+                Boolean selling = currentTradeMission.StockedUp();
+                GameTown currentDestinationTown = selling ? currentTradeMission.GetDestination() : currentTradeMission.GetDeparture();
+                AIShip aiShip = GameShip.GetComponent<AIShip>();
+                if (aiShip != null)
                 {
-                    string[] resources = tradeMissions.Where(m => m.Destination == currentTradeMission.Destination && m.StockedUp())
-                        .Select(m => Localization.Get(m.ResourceName))
-                        .GroupBy(x => x)
-                        .Select(g => g.Key + (g.Count() > 1 ? " (x" + g.Count() + ")" : "")).ToArray();
-                    string resourcesCS = string.Join(", ", resources);
-                    AddHudText("Delivering " + resourcesCS + " to " + currentDestinationTown.name, 1f);
+                    if (selling)
+                    {
+                        string[] resources = tradeMissions.Where(m => m.Destination == currentTradeMission.Destination && m.StockedUp())
+                            .Select(m => Localization.Get(m.ResourceName))
+                            .GroupBy(x => x)
+                            .Select(g => g.Key + (g.Count() > 1 ? " (x" + g.Count() + ")" : "")).ToArray();
+                        string resourcesCS = string.Join(", ", resources);
+                        AddHudText(Localization.Format("Delivering",resourcesCS, FormatTown(currentDestinationTown)), 1f);
+                    }
+                    else
+                    {
+                        string[] resources = tradeMissions.Where(m => m.Departure == currentTradeMission.Departure && !m.StockedUp()).Select(m => Localization.Get(m.ResourceName))
+                            .GroupBy(x => x)
+                            .Select(g => g.Key + (g.Count() > 1 ? " (x" + g.Count() + ")" : "")).ToArray();
+                        string resourcesCS = string.Join(", ", resources);
+                        AddHudText(Localization.Format("Buying", resourcesCS, FormatTown(currentDestinationTown)), 1f);
+                        
+
+                    }
                 }
-                else
-                {
-                    string[] resources = tradeMissions.Where(m => m.Departure == currentTradeMission.Departure && !m.StockedUp()).Select(m => Localization.Get(m.ResourceName))
-                        .GroupBy(x => x)
-                        .Select(g => g.Key + (g.Count() > 1 ? " (x" + g.Count() + ")" : "")).ToArray();
-                    string resourcesCS = string.Join(", ", resources);
-                    AddHudText("Buying " + resourcesCS + " from " + currentDestinationTown.name, 1f);
-                }
+            } else
+            {
+                AddHudText("Where are the good deals ?", 1f);
             }
-        } else
-        {
-            AddHudText("Where are the good deals ?", 1f);
         }
     }
 
@@ -213,58 +141,23 @@ public class TradeShip : TNBehaviour
         this.TradeMissions = new List<TradeMission>();
     }
 
-    internal void Activate(TNet.Player owner)
+    private static String FormatTown(GameTown gameTown)
     {
-        this.Owner = owner;
-        Activate();
+        return FormatFactionColor(gameTown.name, gameTown.factionID);
+    }
+    private static String FormatShip(GameShip gameShip)
+    {
+        return FormatFactionColor(gameShip.name, gameShip.factionID);
+    }
+    private static String FormatFactionColor(String text, int factionId)
+    {
+        return "[" + NGUIText.EncodeColor(factionId != 0 ? GameConfig.GetFactionColor(factionId) : Color.white) + "]" + text + "[-]";
     }
 
     public void AddHudText(string message, float duration)
     {
-
-        TradeChat.DebugTradeShip("SND update Hud");
-        tno.Send("OnAddHudText", TNet.Target.All, message, duration);
+        GetGameShip().AddHudText(message, Color.gray, duration, false);
     }
-
-    [TNet.RFC]
-    protected void OnAddHudText(string message, float duration)
-    {
-        TradeChat.DebugTradeShip("UPD update Hud");
-
-        if (Owner != null && Owner.id == MyPlayer.id)
-        {
-            Color GREEN = new Color(111, 206, 101);
-            GetGameShip().AddHudText(message, GREEN, duration, false);
-        } else
-        {
-            GetGameShip().AddHudText(message, Color.gray, duration, false);
-        }
-    }
-
-    public void UpdateShip()
-    {
-        var GameShip = GetGameShip();
-
-        if (Owner != null)
-        {
-            var gamePlayer = GamePlayer.Find(Owner.id);
-            if (GameShip.sailColor0 != gamePlayer.ship.sailColor0 || GameShip.sailColor1 != gamePlayer.ship.sailColor1 || GameShip.symbolTex != gamePlayer.ship.symbolTex)
-            {
-                tno.Send("OnUpdateShip", TNet.Target.AllSaved, gamePlayer.ship.sailColor0, gamePlayer.ship.sailColor1, gamePlayer.ship.symbolTex);
-            }
-        }
-    }
-
-    [TNet.RFC]
-    protected void OnUpdateShip(Color sailColor0, Color sailColor1, string symbolTex)
-    {
-        var GameShip = GetGameShip();
-
-        GameShip.sailColor0 = sailColor0;
-        GameShip.sailColor1 = sailColor1;
-        GameShip.symbolTex = symbolTex;
-    }
-
 
     public void UpdateTradeMissions()
     {
@@ -277,7 +170,6 @@ public class TradeShip : TNBehaviour
             List<TradeMission> newTradeMissions = TradeMissionCalculator.FindTradeMissions(GetGameShip(), cargoSlots - TradeMissions.Count());
             TradeMissions.AddRange(newTradeMissions);
         }
-        SaveTradeMissions();
     }
 
 
@@ -337,105 +229,138 @@ public class TradeShip : TNBehaviour
             if (tradeMissionsToRemove.Count() > 0)
             {
                 RemoveTradeMissions(tradeMissionsToRemove);
-                SaveTradeMissions();
-            }
+            }           
         }
     }
 
+    private static string FormatGold(int gold)
+    {
+        return GameTools.FormatGold(gold) + "g";
+    }
     public void BuyBack(int departureId, string resourceName, int purchasePrice)
     {
         if (Owner != null)
         {
-            tno.Send("OnBuyBack", Owner.id, departureId, resourceName, purchasePrice);
+            float multi = GameZone.rewardMultiplier;
+            var gameTown = GameTown.Find(departureId);
+            int price = gameTown.GetBuyBackOffer(resourceName, purchasePrice, multi);
+            gameTown.IncreaseProduction(resourceName);
+            MyPlayer.ModifyResource("gold", price  - purchasePrice, true);
+            int profit = price - purchasePrice;
+            this.profit += profit;
+            var profitText = profit >= 0 ? Localization.Format("profit") : Localization.Format("loss") + " : " + FormatGold(Math.Abs(profit));
+            TradeChat.Bad(Localization.Format("BuyBack", FormatShip(GetGameShip()), Localization.Get(resourceName),FormatTown(gameTown), profitText));
+            MyPlayer.saveNeeded = true;
+            MyPlayer.Sync();
         }
-    }
-
-    [TNet.RFC]
-    protected void OnBuyBack(int departureId, string resourceName, int purchasePrice)
-    {
-        float multi = GameZone.rewardMultiplier;
-        var gameTown = GameTown.Find(departureId);
-        int price = gameTown.GetBuyBackOffer(resourceName, purchasePrice, multi);
-        gameTown.IncreaseProduction(resourceName);
-        MyPlayer.ModifyResource("gold", -purchasePrice, true);
-        MyPlayer.ModifyResource("gold", price, true);
-        int profit = price - purchasePrice;
-        TradeChat.Bad(GetGameShip().name + " sold " + Localization.Get(resourceName) + " back to " + gameTown.name + " as a buy back. " + (profit >= 0 ? "Profit" : "Loss") + " : " + Math.Abs(profit) + "g");
-        MyPlayer.saveNeeded = true;
-        MyPlayer.Sync();
-
     }
 
     public void Sell(int destination, string resourceName, int purchasePrice)
     {
         if (Owner != null)
         {
-            tno.Send("OnSell", Owner.id, destination, resourceName, purchasePrice);
+            var gameTown = GameTown.Find(destination);
+            var playerItem = CreatePlayerItemForResource(gameTown, resourceName, purchasePrice);
+            int salePrice = gameTown.Sell(playerItem);
+            if (salePrice > 0)
+            {
+                MyPlayer.ModifyResource("gold", -purchasePrice, true);
+                int profit = salePrice - purchasePrice;
+                string profitText = (profit >= 0 ? Localization.Format("profit") : Localization.Format("loss")) + " : " + FormatGold(Math.Abs(profit));
+                var text = Localization.Format("Sold", FormatShip(GetGameShip()),Localization.Get(resourceName),FormatTown(gameTown), profitText) ;
+                this.profit += profit;
+                if (profit > 0)
+                {
+                    TradeChat.Chat(text);
+                }
+                else
+                {
+                    TradeChat.Bad(text);
+                }
+                MyPlayer.saveNeeded = true;
+                MyPlayer.Sync();
+
+            }
         }
     }
 
-    [TNet.RFC]
-    protected void OnSell(int destination, string resourceName, int purchasePrice)
-    {
-        var gameTown = GameTown.Find(destination);
-        var playerItem = CreatePlayerItemForResource(gameTown, resourceName, purchasePrice);
-        TradeChat.DebugTradeShip("Sale gold of playeritem: " + playerItem.gold);
-        int salePrice = gameTown.Sell(playerItem);
-        if (salePrice > 0)
-        {
-            MyPlayer.ModifyResource("gold", -purchasePrice, true);
-            int profit = salePrice - purchasePrice;
-            var text = GetGameShip().name + " sold " + Localization.Get(resourceName) + " at " + gameTown.name + ". " + (profit >= 0 ? "Profit" : "Loss") + " : " + Math.Abs(profit) + "g";
-            if (profit > 0)
-            {
-                TradeChat.Chat(text);
-            }
-            else
-            {
-                TradeChat.Bad(text);
-            }
-            MyPlayer.saveNeeded = true;
-            MyPlayer.Sync();
-
-        }
-    }
 
     private void OnClick() {
-        UIPopupList popupList = UIGameWindow.popupList;
-        popupList.Clear();
+        if (Owner != null && Owner.id != MyPlayer.id)
+        {
+            UIStatusBar.Show(Localization.Format("Owned by", gameShip.name, GetOwner()?.name));
 
-        TradeChat.Chat("Clicked on " + gameShip.name + " owned by " + GetOwner()?.name );
-        if (Owner == null)
-        {
-            string gold = GameTools.FormatGold(CalculatePrice(), false, true);
-            popupList.AddItem(Localization.Format("Hire as trader", gameShip.name, gold), "hire");
-            EventDelegate.Set(popupList.onChange, new EventDelegate.Callback(HirePopupCallBack));
-        } else if(Owner.id == MyPlayer.id)
-        {
-            string gold = GameTools.FormatGold(CalculatePrice(), false, true);
-            popupList.AddItem(Localization.Format("Fire as trader", gameShip.name), "fire");
-            popupList.AddItem(Localization.Format("Upgrade for 1000g", gameShip.name), "upgrade");
-            EventDelegate.Set(popupList.onChange, new EventDelegate.Callback(FirePopupCallBack));
-        } else
-        {
-            popupList.AddItem("No options", "fire");
         }
-        popupList.Show();
+        else
+        {
+            UIPopupList popupList = UIGameWindow.popupList;
+            popupList.Clear();
+
+            if (Owner == null)
+            {
+                string gold = FormatGold(CalculatePrice());
+                popupList.AddItem(Localization.Format("Hire as trader", FormatShip(gameShip), gold), "hire");
+                EventDelegate.Set(popupList.onChange, new EventDelegate.Callback(HirePopupCallBack));
+            }
+            else if (Owner.id == MyPlayer.id)
+            {
+                UIStatusBar.Show(Localization.Format("Status", FormatShip(gameShip), GetCargoSlots(), FormatGold(this.profit)));
+
+                string gold = FormatGold(CalculatePrice());
+                popupList.AddItem(Localization.Format("Fire as trader", FormatShip(gameShip)), "fire");
+                //popupList.AddItem(Localization.Format("Upgrade for 1000g", gameShip.name), "upgrade");
+                EventDelegate.Set(popupList.onChange, new EventDelegate.Callback(FirePopupCallBack));
+            }
+            popupList.Show();
+        }
     }
     
     private void HirePopupCallBack()
     {
         int price = CalculatePrice();
-        MyPlayer.ModifyResource("gold", -price, true);
-        MyPlayer.Sync();
-        UpdateTraderOwner(GamePlayer.me.netPlayer.id);
-        UIStatusBar.Show(Localization.Format("Hired", gameShip.name, price));
-
+        if (MyPlayer.GetResource("gold") >= price)
+        {
+            MyPlayer.ModifyResource("gold", -price, true);
+            MyPlayer.Sync();
+            this.cost = price;
+            UpdateTraderOwner(GamePlayer.me.netPlayer.id);
+            UIStatusBar.Show(Localization.Format("Hired", FormatShip(gameShip), FormatGold(price), GetCargoSlots()));
+        } else
+        {
+            UIStatusBar.Show(Localization.Format("Cant afford to hire", FormatShip(gameShip), FormatGold(price)));
+        }
         UIPopupList popupList = UIGameWindow.popupList;
         popupList.Clear();
         EventDelegate.Remove(popupList.onChange, new EventDelegate.Callback(HirePopupCallBack));
     }
 
+
+    private IEnumerator DoUpdateShipToPlayer()
+    {
+        for (; ; )
+        {
+            UpdateShip();
+            yield return new WaitForSeconds(5f);
+        }
+    }
+
+    private void UpdateShip()
+    {
+        if (Owner != null)
+        {
+            var player = GamePlayer.Find(Owner.id);
+            if (player != null && player.ship != null)
+            {
+                gameShip.factionID = player.factionID;
+                gameShip.ai.state = AIShip.State.Idle;
+                gameShip.symbolTex = player.ship.symbolTex;
+                gameShip.sailColor0 = player.ship.sailColor0;
+                gameShip.sailColor1 = player.ship.sailColor1;
+                gameShip.hullColor0 = player.ship.hullColor0;
+                gameShip.hullColor1 = player.ship.hullColor1;
+            }
+        }
+    }
     private void FirePopupCallBack()
     {
         int price = CalculatePrice();
@@ -447,47 +372,17 @@ public class TradeShip : TNBehaviour
         {
             case "fire":
                 UpdateTraderOwner(null);
-                UIStatusBar.Show(Localization.Format("Fired", gameShip.name));
-                break;
-            case "upgrade":
-                UpgradeShip();
+                TradeMissions = new List<TradeMission>();
+                UIStatusBar.Show(Localization.Format("Fired", FormatShip(gameShip)));
                 break;
         }
         EventDelegate.Remove(popupList.onChange, new EventDelegate.Callback(FirePopupCallBack));
-
     }
 
-    private void UpgradeShip()
-    {
-        Spawn(name, "Corvette", gameShip.factionID, gameShip.position, gameShip.angle);
-    }
-
-    private void Spawn(string name,  string shipPrefab, int factionId, Vector3 position, float angle)
-    {
-
-        GameShip.Create(name, shipPrefab, factionId, position, angle, 1);
-
-        this.InvokeRepeating("UpgradeReplacingTrader", 0.5f, 0.1f);
-    }
-
-    private void UpgradeReplacingTrader()
-    {
-        var possibleTrader = GameWorld.FindObjectsOfType<GameShip>().Where(x => x.name.Equals(gameShip.name)).FirstOrDefault();
-        if (possibleTrader != null)
-        {
-            TradeShip traderShip = possibleTrader.GetComponent<TradeShip>();
-            if (traderShip == null)
-            {
-                possibleTrader.gameObject.AddMissingComponent<TradeShip>().Activate();
-                tno.DestroySelf();
-            }
-        }
-        this.CancelInvoke("UpgradeReplacingTrader");
-    }
 
     private int CalculatePrice()
     {
-        return GetCargoSlots() * 200;
+        return GetCargoSlots() * CONST_BASE_PRICE * (gameShip.factionID == 0 ? PIRATE_CONVERSION_MULTIPLIER : 1);
     }
     public void Dettach()
     {
@@ -510,7 +405,8 @@ public class TradeShip : TNBehaviour
                 if (production >= 1)
                 {
                     PlayerItem playerItem = CreatePlayerItemForResource(gameTown, tradeMission.ResourceName);
-                    TradeChat.Chat(GameShip.name + " buying " + playerItem.name + " at " + gameTown.name + " for " + playerItem.gold + "g");
+                    profit -= playerItem.gold;
+                    TradeChat.Chat(Localization.Format("Buying at", FormatShip(gameShip),playerItem.name ,FormatTown(gameTown), FormatGold(playerItem.gold)));
                     tradeMission.GetDeparture().ReduceProduction(tradeMission.ResourceName);
                     tradeMission.PurchasePrice = playerItem.gold;
 
@@ -523,7 +419,6 @@ public class TradeShip : TNBehaviour
         if (tradeMissionsToRemove.Count() > 0)
         {
             RemoveTradeMissions(tradeMissionsToRemove);
-            SaveTradeMissions();
         }
     }
 
@@ -590,7 +485,6 @@ public class TradeShip : TNBehaviour
     {
         if (playerId.HasValue)
         {
-            TradeChat.DebugTradeShip("Updating playerId " + playerId.Value);
             tno.Send("OnUpdateTraderOwner", TNet.Target.AllSaved, playerId.Value);
         } else
         {
@@ -601,8 +495,11 @@ public class TradeShip : TNBehaviour
     [TNet.RFC]
     protected void OnUpdateTraderOwner(int playerId)
     {
-        this.Owner = GamePlayer.Find(playerId).netPlayer;
-        TradeChat.DebugTradeShip("Updated owner to " + Owner.id);
+        GamePlayer gamePlayer = GamePlayer.Find(playerId);
+        if (gamePlayer != null) {
+            this.Owner = gamePlayer.netPlayer;
+            UpdateShip();
+        }
     }
 
     [TNet.RFC]
@@ -624,11 +521,11 @@ public class TradeShip : TNBehaviour
                 }
                 if (!GameTownIsAlly(gameShip, destinationTown))
                 {
-                    TradeChat.Bad(destinationTown.name + " is not an ally");
+                    TradeChat.Bad(Localization.Format("Not an ally!", FormatShip(gameShip), FormatTown(destinationTown)));
                 }
                 if (!destinationTown.NeedsResource(tradeMission.ResourceName))
                 {
-                    TradeChat.Bad(destinationTown.name+ " doesn't need resource " + tradeMission.ResourceName);
+                    TradeChat.Bad(Localization.Format("Does not need resource", FormatShip(gameShip), FormatTown(destinationTown),Localization.Get(tradeMission.ResourceName)));
                 }
                 tradeMission.Valid = false;
             }
@@ -641,11 +538,11 @@ public class TradeShip : TNBehaviour
             {
                 if (!GameTownIsAlly(gameShip, departure))
                 {
-                    TradeChat.Bad(departure.name + " is not an ally");
+                    TradeChat.Bad(Localization.Format("Not an ally!", FormatShip(gameShip), FormatTown(departure)));
                 }
                 if (!departure.HasResource(tradeMission.ResourceName))
                 {
-                    TradeChat.Bad(departure.name + " doesn't have resource " + tradeMission.ResourceName);
+                    TradeChat.Bad(Localization.Format("Does not have resource", FormatShip(gameShip), FormatTown(departure), Localization.Get(tradeMission.ResourceName)));
                 }
                 tradeMission.Valid = false;
             }
