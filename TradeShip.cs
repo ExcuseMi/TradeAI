@@ -5,18 +5,18 @@ using System.Text;
 using UnityEngine;
 using Tasharen;
 using System.Collections;
+
 [RequireComponent(typeof(GameShip))]
 public class TradeShip : TNBehaviour
 {
     public GameShip gameShip { get; set; }
     const float RANGE = 8f;
-    const int CONST_BASE_PRICE = 10;
-    const int DEFAULT_CARGO_SLOTS = 2;
-    const int PIRATE_CONVERSION_MULTIPLIER = 3;
+    private static readonly int DEFAULT_CARGO_SLOTS = 2;
     public int cost;
     public int profit = 0;
 
     public TNet.Player Owner;
+    public int cargoSlots = 2;
 
     [NonSerialized]
     public List<TradeMission> TradeMissions = new List<TradeMission>();
@@ -32,7 +32,6 @@ public class TradeShip : TNBehaviour
     protected virtual void OnDisable()
     {
         StopCoroutine(DoUpdateShipToPlayer());
-
     }
 
 
@@ -40,6 +39,20 @@ public class TradeShip : TNBehaviour
     {
         this.gameShip.onDeath -= new GameShip.DeathCallback(this.Died);
         Dettach();
+        if (Owner != null && Owner.id == MyPlayer.id)
+        {
+            int cargoWorth = TradeMissions.Sum(m => !m.Completed ? m.PurchasePrice : 0);
+            if (cargoWorth == 0)
+            {
+                TradeChat.Chat(Localization.Format("Ship destroyed", this.gameShip.name));
+            }
+            else
+            {
+                TradeChat.Chat(Localization.Format("Ship destroyed with cargo", this.gameShip.name, Format.FormatGold(cargoWorth)));
+                MyPlayer.ModifyResource("gold", -cargoWorth, true);
+                MyPlayer.Sync();
+            }
+        }
     }
 
     public GameShip GetGameShip()
@@ -114,7 +127,7 @@ public class TradeShip : TNBehaviour
                             .GroupBy(x => x)
                             .Select(g => g.Key + (g.Count() > 1 ? " (x" + g.Count() + ")" : "")).ToArray();
                         string resourcesCS = string.Join(", ", resources);
-                        AddHudText(Localization.Format("Delivering",resourcesCS, FormatTown(currentDestinationTown)), 1f);
+                        AddHudText(Localization.Format("Delivering",resourcesCS, Format.FormatTown(currentDestinationTown)), 1f);
                     }
                     else
                     {
@@ -122,7 +135,7 @@ public class TradeShip : TNBehaviour
                             .GroupBy(x => x)
                             .Select(g => g.Key + (g.Count() > 1 ? " (x" + g.Count() + ")" : "")).ToArray();
                         string resourcesCS = string.Join(", ", resources);
-                        AddHudText(Localization.Format("Buying", resourcesCS, FormatTown(currentDestinationTown)), 1f);
+                        AddHudText(Localization.Format("Buying", resourcesCS, Format.FormatTown(currentDestinationTown)), 1f);
                         
 
                     }
@@ -139,20 +152,9 @@ public class TradeShip : TNBehaviour
         var gameShip = GetGameShip();
         tno.onDestroy += Dettach;
         this.TradeMissions = new List<TradeMission>();
+        this.cargoSlots = CalculateCargoSlots(gameShip.prefabName);
     }
 
-    private static String FormatTown(GameTown gameTown)
-    {
-        return FormatFactionColor(gameTown.name, gameTown.factionID);
-    }
-    private static String FormatShip(GameShip gameShip)
-    {
-        return FormatFactionColor(gameShip.name, gameShip.factionID);
-    }
-    private static String FormatFactionColor(String text, int factionId)
-    {
-        return "[" + NGUIText.EncodeColor(factionId != 0 ? GameConfig.GetFactionColor(factionId) : Color.white) + "]" + text + "[-]";
-    }
 
     public void AddHudText(string message, float duration)
     {
@@ -164,7 +166,6 @@ public class TradeShip : TNBehaviour
         TradeMissions.ForEach(x => UpdateTradeMission(x));
         TradeMissions.RemoveAll(x => !x.Valid);
 
-        var cargoSlots = GetCargoSlots();
         if (TradeMissions.Count() < cargoSlots)
         {
             List<TradeMission> newTradeMissions = TradeMissionCalculator.FindTradeMissions(GetGameShip(), cargoSlots - TradeMissions.Count());
@@ -233,10 +234,8 @@ public class TradeShip : TNBehaviour
         }
     }
 
-    private static string FormatGold(int gold)
-    {
-        return GameTools.FormatGold(gold) + "g";
-    }
+
+
     public void BuyBack(int departureId, string resourceName, int purchasePrice)
     {
         if (Owner != null)
@@ -248,8 +247,8 @@ public class TradeShip : TNBehaviour
             MyPlayer.ModifyResource("gold", price  - purchasePrice, true);
             int profit = price - purchasePrice;
             this.profit += profit;
-            var profitText = profit >= 0 ? Localization.Format("profit") : Localization.Format("loss") + " : " + FormatGold(Math.Abs(profit));
-            TradeChat.Bad(Localization.Format("BuyBack", FormatShip(GetGameShip()), Localization.Get(resourceName),FormatTown(gameTown), profitText));
+            var profitText = profit >= 0 ? Localization.Format("profit") : Localization.Format("loss") + " : " + Format.FormatGold(Math.Abs(profit));
+            TradeChat.Bad(Localization.Format("BuyBack", Format.FormatShip(GetGameShip()), Localization.Get(resourceName), Format.FormatTown(gameTown), profitText));
             MyPlayer.saveNeeded = true;
             MyPlayer.Sync();
         }
@@ -260,14 +259,16 @@ public class TradeShip : TNBehaviour
         if (Owner != null)
         {
             var gameTown = GameTown.Find(destination);
-            var playerItem = CreatePlayerItemForResource(gameTown, resourceName, purchasePrice);
+            var playerItem = ResourceFactory.CreatePlayerItemForResource(gameTown, resourceName, purchasePrice);
             int salePrice = gameTown.Sell(playerItem);
             if (salePrice > 0)
             {
-                MyPlayer.ModifyResource("gold", -purchasePrice, true);
                 int profit = salePrice - purchasePrice;
-                string profitText = (profit >= 0 ? Localization.Format("profit") : Localization.Format("loss")) + " : " + FormatGold(Math.Abs(profit));
-                var text = Localization.Format("Sold", FormatShip(GetGameShip()),Localization.Get(resourceName),FormatTown(gameTown), profitText) ;
+
+                MyPlayer.ModifyResource("gold", -profit, true);
+                MyPlayer.Sync();
+                string profitText = (profit >= 0 ? Localization.Format("profit") : Localization.Format("loss")) + " : " + Format.FormatGold(Math.Abs(profit));
+                var text = Localization.Format("Sold", Format.FormatShip(GetGameShip()),Localization.Get(resourceName), Format.FormatTown(gameTown), profitText) ;
                 this.profit += profit;
                 if (profit > 0)
                 {
@@ -285,54 +286,6 @@ public class TradeShip : TNBehaviour
     }
 
 
-    private void OnClick() {
-        if (Owner != null && Owner.id != MyPlayer.id)
-        {
-            UIStatusBar.Show(Localization.Format("Owned by", gameShip.name, GetOwner()?.name));
-
-        }
-        else
-        {
-            UIPopupList popupList = UIGameWindow.popupList;
-            popupList.Clear();
-
-            if (Owner == null)
-            {
-                string gold = FormatGold(CalculatePrice());
-                popupList.AddItem(Localization.Format("Hire as trader", FormatShip(gameShip), gold), "hire");
-                EventDelegate.Set(popupList.onChange, new EventDelegate.Callback(HirePopupCallBack));
-            }
-            else if (Owner.id == MyPlayer.id)
-            {
-                UIStatusBar.Show(Localization.Format("Status", FormatShip(gameShip), GetCargoSlots(), FormatGold(this.profit)));
-
-                string gold = FormatGold(CalculatePrice());
-                popupList.AddItem(Localization.Format("Fire as trader", FormatShip(gameShip)), "fire");
-                //popupList.AddItem(Localization.Format("Upgrade for 1000g", gameShip.name), "upgrade");
-                EventDelegate.Set(popupList.onChange, new EventDelegate.Callback(FirePopupCallBack));
-            }
-            popupList.Show();
-        }
-    }
-    
-    private void HirePopupCallBack()
-    {
-        int price = CalculatePrice();
-        if (MyPlayer.GetResource("gold") >= price)
-        {
-            MyPlayer.ModifyResource("gold", -price, true);
-            MyPlayer.Sync();
-            this.cost = price;
-            UpdateTraderOwner(GamePlayer.me.netPlayer.id);
-            UIStatusBar.Show(Localization.Format("Hired", FormatShip(gameShip), FormatGold(price), GetCargoSlots()));
-        } else
-        {
-            UIStatusBar.Show(Localization.Format("Cant afford to hire", FormatShip(gameShip), FormatGold(price)));
-        }
-        UIPopupList popupList = UIGameWindow.popupList;
-        popupList.Clear();
-        EventDelegate.Remove(popupList.onChange, new EventDelegate.Callback(HirePopupCallBack));
-    }
 
 
     private IEnumerator DoUpdateShipToPlayer()
@@ -361,29 +314,8 @@ public class TradeShip : TNBehaviour
             }
         }
     }
-    private void FirePopupCallBack()
-    {
-        int price = CalculatePrice();
-        UpdateTraderOwner(null);
-        UIPopupList popupList = UIGameWindow.popupList;
-        string data = UIPopupList.current.data as string;
-        popupList.Clear();
-        switch(data)
-        {
-            case "fire":
-                UpdateTraderOwner(null);
-                TradeMissions = new List<TradeMission>();
-                UIStatusBar.Show(Localization.Format("Fired", FormatShip(gameShip)));
-                break;
-        }
-        EventDelegate.Remove(popupList.onChange, new EventDelegate.Callback(FirePopupCallBack));
-    }
 
 
-    private int CalculatePrice()
-    {
-        return GetCargoSlots() * CONST_BASE_PRICE * (gameShip.factionID == 0 ? PIRATE_CONVERSION_MULTIPLIER : 1);
-    }
     public void Dettach()
     {
         OnDisable();
@@ -404,9 +336,9 @@ public class TradeShip : TNBehaviour
                 var production = departure.GetProduction(tradeMission.ResourceName);
                 if (production >= 1)
                 {
-                    PlayerItem playerItem = CreatePlayerItemForResource(gameTown, tradeMission.ResourceName);
+                    PlayerItem playerItem = ResourceFactory.CreatePlayerItemForResource(gameTown, tradeMission.ResourceName);
                     profit -= playerItem.gold;
-                    TradeChat.Chat(Localization.Format("Buying at", FormatShip(gameShip),playerItem.name ,FormatTown(gameTown), FormatGold(playerItem.gold)));
+                    TradeChat.Chat(Localization.Format("Buying at", Format.FormatShip(gameShip),playerItem.name , Format.FormatTown(gameTown), Format.FormatGold(playerItem.gold)));
                     tradeMission.GetDeparture().ReduceProduction(tradeMission.ResourceName);
                     tradeMission.PurchasePrice = playerItem.gold;
 
@@ -430,40 +362,7 @@ public class TradeShip : TNBehaviour
         }
     }
 
-    private static PlayerItem CreatePlayerItemForResource(GameTown gameTown, string resourceName)
-    {
-        float multi = GameZone.rewardMultiplier;
-        int mPrice = gameTown.GetFinalProductionOffer(resourceName, multi);
-        PlayerItem playerItem = new PlayerItem();
-        playerItem.name = Localization.Format("Shipment of", Localization.Get(resourceName));
-        playerItem.info = Localization.Format("Loaded in", gameTown.name);
-        playerItem.gold = mPrice;
-        playerItem.SetStat(resourceName, 1);
-        playerItem.SetStat("Level", GameZone.challengeLevel);
-        playerItem.type = "Shipment";
-        return playerItem;
-    }
-
-
-    private static PlayerItem CreatePlayerItemForResource(GameTown gameTown, string resourceName, int purchasePrice)
-    {
-        PlayerItem playerItem = new PlayerItem();
-        playerItem.name = Localization.Format("Shipment of", Localization.Get(resourceName));
-        playerItem.info = Localization.Format("Loaded in", gameTown.name);
-        playerItem.gold = purchasePrice;
-        playerItem.type = "Shipment";
-        playerItem.SetStat(resourceName, 1);
-        playerItem.SetStat("Level", GameZone.challengeLevel);
-        return playerItem;
-    }
-
-    public int GetCargoSlots()
-    {
-        var GameShip = GetGameShip();
-        return GetCargoSlots(GameShip.prefabName);
-    }
-
-    private static int GetCargoSlots(string name)
+    private static int CalculateCargoSlots(string name)
     {
         TNet.DataNode ships = GameConfig.ships;
         if (ships == null || ships.children.size == 0)
@@ -521,11 +420,11 @@ public class TradeShip : TNBehaviour
                 }
                 if (!GameTownIsAlly(gameShip, destinationTown))
                 {
-                    TradeChat.Bad(Localization.Format("Not an ally!", FormatShip(gameShip), FormatTown(destinationTown)));
+                    TradeChat.Bad(Localization.Format("Not an ally!", Format.FormatShip(gameShip), Format.FormatTown(destinationTown)));
                 }
                 if (!destinationTown.NeedsResource(tradeMission.ResourceName))
                 {
-                    TradeChat.Bad(Localization.Format("Does not need resource", FormatShip(gameShip), FormatTown(destinationTown),Localization.Get(tradeMission.ResourceName)));
+                    TradeChat.Bad(Localization.Format("Does not need resource", Format.FormatShip(gameShip), Format.FormatTown(destinationTown),Localization.Get(tradeMission.ResourceName)));
                 }
                 tradeMission.Valid = false;
             }
@@ -538,11 +437,11 @@ public class TradeShip : TNBehaviour
             {
                 if (!GameTownIsAlly(gameShip, departure))
                 {
-                    TradeChat.Bad(Localization.Format("Not an ally!", FormatShip(gameShip), FormatTown(departure)));
+                    TradeChat.Bad(Localization.Format("Not an ally!", Format.FormatShip(gameShip), Format.FormatTown(departure)));
                 }
                 if (!departure.HasResource(tradeMission.ResourceName))
                 {
-                    TradeChat.Bad(Localization.Format("Does not have resource", FormatShip(gameShip), FormatTown(departure), Localization.Get(tradeMission.ResourceName)));
+                    TradeChat.Bad(Localization.Format("Does not have resource", Format.FormatShip(gameShip), Format.FormatTown(departure), Localization.Get(tradeMission.ResourceName)));
                 }
                 tradeMission.Valid = false;
             }

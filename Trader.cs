@@ -28,11 +28,6 @@ public class Trader : MonoBehaviour
         }
     }
 
-    private void OnLeftChannel()
-    {
-
-    }
-
     private void RemovePlayer(Player p)
     {
         foreach (TradeShip tradeShip in GameWorld.FindObjectsOfType<TradeShip>().Where(x => x.Owner != null && x.Owner.id == p.id))
@@ -109,6 +104,11 @@ public class Trader : MonoBehaviour
 
     private void UpdateToTradeShip(GameObject go)
     {
+        var gameMap = FindObjectOfType<UIGameMap>();
+        if(gameMap != null)
+        {
+            gameMap.overrideSprite = null;
+        }
         if (GameZone.regionType == GameZone.RegionType.World || GameZone.regionType == GameZone.RegionType.Questing)
         {
             GameShip gameShip = go.GetComponent<GameShip>();
@@ -116,6 +116,9 @@ public class Trader : MonoBehaviour
             if (gameShip != null && gameShip.player == null)
             {
                 go.AddMissingComponent<TradeShip>().Activate();
+                go.AddMissingComponent<TraderClickableScript>();
+                //Destroy(GetComponent<UIGameMapIcon>());
+
             }
         }
     }

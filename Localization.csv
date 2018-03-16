@@ -6,14 +6,17 @@ Hired,You hired trader {0} for {1} with {2} cargo slots!
 Fired,You fired trader {0}!
 Hired by someone else,{0} hired trader {1} already!
 Cant afford to hire,You can't afford to hire {0} for {1}!
-Status,Trader {0} with {1} cargo slots made a profit of {2}.
+Status,Trader {0} with {1} cargo slots made a {2} of {3}.
 Delivering,Delivering {0} to {1}
 Buying,Buying {0} from {1}
 Buying at,{0}: Buying {1} at {2} for {3}
-Sold,{0}: Sold {1} at {2}, {3}
+Sold,{0}: "Sold {1} at {2}, {3}"
 profit,profit
 loss,loss
 Not an ally,{0}: {1} is not ally!
 Does not need resource,{0}: {1} doesn't need resource {2} anymore!
 Does not have resource,{0}: {1} doesn't have resource {2} anymore!
-Buyback,{0}: Sold {1} back to {2} as a buy back, {3}
+Buyback,{0}: "Sold {0} back to {1} as a buy back, {2}"
+Trader limit,You've reached the trader limit of {0}!
+Ship destroyed,Your trade ship {0} has been destroyed!
+Ship destroyed with cargo,Your trade ship {0} has been destroyed with a cargo worth {1}!
