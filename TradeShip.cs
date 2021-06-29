@@ -267,8 +267,16 @@ public class TradeShip : TNBehaviour
 
                 MyPlayer.ModifyResource("gold", -profit, true);
                 MyPlayer.Sync();
-                string profitText = (profit >= 0 ? Localization.Format("profit") : Localization.Format("loss")) + " : " + Format.FormatGold(Math.Abs(profit));
-                var text = Localization.Format("Sold", Format.FormatShip(GetGameShip()),Localization.Get(resourceName), Format.FormatTown(gameTown), profitText) ;
+                string profitOrLoss = profit >= 0 ?
+                    Localization.Format("profit") :
+                    Localization.Format("loss");
+                string profitText = profitOrLoss + " : " + Format.FormatGold(Math.Abs(profit));
+                var text = Localization.Format(
+                    "Sold", 
+                    Format.FormatShip(GetGameShip()),
+                    Localization.Get(resourceName), 
+                    Format.FormatTown(gameTown), 
+                    profitText) ;
                 this.profit += profit;
                 if (profit > 0)
                 {
@@ -420,7 +428,7 @@ public class TradeShip : TNBehaviour
                 }
                 if (!GameTownIsAlly(gameShip, destinationTown))
                 {
-                    TradeChat.Bad(Localization.Format("Not an ally!", Format.FormatShip(gameShip), Format.FormatTown(destinationTown)));
+                    TradeChat.Bad(Localization.Format("Not an ally", Format.FormatShip(gameShip), Format.FormatTown(destinationTown)));
                 }
                 if (!destinationTown.NeedsResource(tradeMission.ResourceName))
                 {
@@ -437,7 +445,7 @@ public class TradeShip : TNBehaviour
             {
                 if (!GameTownIsAlly(gameShip, departure))
                 {
-                    TradeChat.Bad(Localization.Format("Not an ally!", Format.FormatShip(gameShip), Format.FormatTown(departure)));
+                    TradeChat.Bad(Localization.Format("Not an ally", Format.FormatShip(gameShip), Format.FormatTown(departure)));
                 }
                 if (!departure.HasResource(tradeMission.ResourceName))
                 {

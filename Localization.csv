@@ -10,7 +10,7 @@ Status,Trader {0} with {1} cargo slots made a {2} of {3}.
 Delivering,Delivering {0} to {1}
 Buying,Buying {0} from {1}
 Buying at,{0}: Buying {1} at {2} for {3}
-Sold,{0}: "Sold {1} at {2}, {3}"
+Sold,"{0}: Sold {1} at {2}, {3}"
 profit,profit
 loss,loss
 Not an ally,{0}: {1} is not ally!

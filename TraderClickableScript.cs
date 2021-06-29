@@ -6,18 +6,17 @@ using UnityEngine;
 [RequireComponent(typeof(TradeShip))]
 class TraderClickableScript : MonoBehaviour
 {
-    const int CONST_BASE_PRICE = 10;
+    const int CONST_BASE_PRICE = 100;
     const int DEFAULT_CARGO_SLOTS = 2;
     const int PIRATE_CONVERSION_MULTIPLIER = 3;
-    const int TRADER_LIMIT = 3;
+    const int TRADER_LIMIT = 5;
 
     void OnClick()
     {
         var tradeShip = GetTradeShip();
         var owner = tradeShip.Owner;
         var gameShip = tradeShip.gameShip;
-
-
+        var sameFaction = gameShip.factionID == MyPlayer.factionID;
         if (tradeShip.Owner != null && tradeShip.Owner.id != MyPlayer.id)
         {
             UIStatusBar.Show(Localization.Format("Owned by", gameShip.name, tradeShip.Owner.name));
@@ -37,10 +36,10 @@ class TraderClickableScript : MonoBehaviour
             {
                 var profitText = tradeShip.profit >= 0 ? Localization.Format("profit") : Localization.Format("loss");
 
-                UIStatusBar.Show(Localization.Format("Status", Format.FormatShip(gameShip), tradeShip.cargoSlots, profitText, Format.FormatGold(tradeShip.profit)));
+                UIStatusBar.Show(Localization.Format("Status", Format.FormatShip(gameShip), tradeShip.cargoSlots, profitText, Format.FormatGold(Math.Abs(tradeShip.profit))));
 
                 string gold = Format.FormatGold(CalculatePrice());
-                popupList.AddItem(Localization.Format("Fire as trader", Format.FormatShip(gameShip)), "fire");
+                popupList.AddItem(Localization.Format("Fire trader", Format.FormatShip(gameShip)), "fire");
                 //popupList.AddItem(Localization.Format("Upgrade for 1000g", gameShip.name), "upgrade");
                 EventDelegate.Set(popupList.onChange, new EventDelegate.Callback(FirePopupCallBack));
             }
@@ -52,7 +51,6 @@ class TraderClickableScript : MonoBehaviour
     {
         var tradeShip = GetTradeShip();
         var gameShip = tradeShip.gameShip;
-
         int price = CalculatePrice();
         if (FindObjectsOfType<TradeShip>().Where(x => x.Owner != null && x.Owner.id == MyPlayer.id).Count() >= TRADER_LIMIT)
         {

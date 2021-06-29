@@ -107,7 +107,7 @@ public class Trader : MonoBehaviour
         var gameMap = FindObjectOfType<UIGameMap>();
         if(gameMap != null)
         {
-            gameMap.overrideSprite = null;
+           gameMap.overrideSprite = null;
         }
         if (GameZone.regionType == GameZone.RegionType.World || GameZone.regionType == GameZone.RegionType.Questing)
         {
